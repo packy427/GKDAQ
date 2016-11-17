@@ -16,7 +16,7 @@
 #define   USART_HAS_DATA   bit_is_set(UCSR0A, RXC0)
 #define   USART_READY      bit_is_set(UCSR0A, UDRE0)
 
-void InitUSART(void);
+void USART_Init(void);
 
 void TransmitByte(uint8_t data);
 

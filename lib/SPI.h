@@ -11,8 +11,9 @@
 #include <avr/io.h>
 
 void SPI_Init();  // Initialize SPI
-void SPI_ExchangeByte(uint8_t txData, uint8_t* rxData);   // Send and read byte
+uint8_t SPI_ExchangeByte(uint8_t txData);   // Send and read byte
 void SPI_TransmitByte(uint8_t txData);  // Send byte and ignore incoming byte
-void SPI_RecieveByte(uint8_t* rxData);  // Send 0 and read incoming byte
+uint8_t SPI_RecieveByte();  // Send 0 and read incoming byte
+
 
 #endif // SPI_H

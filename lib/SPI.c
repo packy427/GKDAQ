@@ -8,7 +8,7 @@
 #include "SPI.h"
 #include "PinDefinitions.h"
 
-void SPI_Init(void){
+void SPI_Init(){
   SPI_DDR |= (1 << SPI_CAN_SS); // Set CAN chip select to output
   SPI_DDR |= (1 << SPI_SCK);    // Set SPI clock to output
   SPI_DDR |= (1 << SPI_MOSI);   // Set MOSI line to output

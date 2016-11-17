@@ -22,6 +22,12 @@ obj/
 *.cbp
 *.layout
 
+# Make Files
+*.o
+*.elf
+*.hex
+*.map
+
 # Windows shortcuts
 *.lnk
 

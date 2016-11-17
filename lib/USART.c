@@ -1,20 +1,20 @@
 // -------------------------------------------------------------
 // USART.c
 // Patrick Kennedy
-// 
+//
 // Basic functions for simple USART communication
 // Referenced from ATMega Datasheet
-// 
+//
 // -------------------------------------------------------------
 
-#include <avr/io.h>
 #include "USART.h"
+#include <avr/io.h>
 #include <util/setbaud.h>
 
 #define EN_DEBUG 1
 
 // Set registers for USART communication
-void InitUSART(void) {
+void USART_Init(void) {
   UBRR0H = UBRRH_VALUE;     // Values defined in setbaud.h
   UBRR0L = UBRRL_VALUE;
 #if USE_2X                  // Set 2X mode if requested
@@ -23,7 +23,7 @@ void InitUSART(void) {
   UCSR0A &= ~(1 << U2X0);
 #endif
 
-  UCSR0B = (1 << TXEN0) | (1 << RXEN0);     // Enable transmitter and reciever
+  UCSR0B = (1 << TXEN0) | (1 << RXEN0);     // Enable transmitter and receiver
   UCSR0C = (1 << UCSZ01) | (1 << UCSZ00);   // Set frame to 8 data, 1 stop bits
 }
 
@@ -33,10 +33,10 @@ void TransmitByte(uint8_t data) {
   UDR0 = data;      // Add data to transmit buffer
 }
 
-// Read data from the recieve buffer
+// Read data from the receive buffer
 uint8_t ReceiveByte(void) {
   loop_until_bit_is_set(UCSR0A, RXC0);      // Wait until buffer has data
-  return UDR0;      // Read data from recieve buffer
+  return UDR0;      // Read data from receive buffer
 }
 
 // -------------------------- //
@@ -72,7 +72,7 @@ void PrintDecimalWord(uint16_t word) {
 // Print byte as sequence of 8 bits to serial
 void PrintBinaryByte(uint8_t byte) {
   uint8_t bit;
-  for (bit = 0; bit < 8; bit++) {
+  for (bit = 7; bit > 0; bit--) {
     if (bit_is_set(byte, bit))
       TransmitByte('1');
     else
@@ -111,9 +111,9 @@ uint8_t ReadByte(void) {
     TransmitByte(thisChar);     // Echo value to verify correct operation
 #endif
   } while (thisChar != '\r');    // Loop until return character is read
-  
+
   // Convert from characters to integer
-  return (100 * (hundreds - '0') + 10 * (tens - '0') + ones - '0'); 
+  return (100 * (hundreds - '0') + 10 * (tens - '0') + ones - '0');
 }
 
 // Read in sequential characters as a string
