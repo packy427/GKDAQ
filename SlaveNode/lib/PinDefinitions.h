@@ -2,7 +2,7 @@
 // pin_definitions.h
 // Patrick Kennedy
 //
-// Pin definitions for Acacia Racing AVR CAN Board Rev A
+// Pin definitions for GKDAQ
 // ------------------------------------------------------
 
 // LED Outputs
@@ -18,25 +18,25 @@
 #define D0_DDR      DDRD
 
 // Analog Input 0
-#define A0         	PC0                    
+#define A0         	PC0
 #define A0_PORT     PORTC
 #define A0_PIN      PINC
 #define A0_DDR      DDRC
 
 // Analog Input 1
-#define A1          PC1    
+#define A1          PC1
 #define A1_PORT     PORTC
 #define A1_PIN      INC
 #define A1_DDR      DDRC
 
 // Analog Input 2
-#define A2          PC2 
+#define A2          PC2
 #define A2_PORT     PORTC
 #define A2_PIN      PINC
 #define A2_DDR      DDRC
 
 // Analog Input 3
-#define A3          PC3 
+#define A3          PC3
 #define A3_PORT     PORTC
 #define A3_PIN      PINC
 #define A3_DDR      DDRC
