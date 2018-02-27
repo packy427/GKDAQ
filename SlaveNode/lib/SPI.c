@@ -1,8 +1,14 @@
-//-------------------------------------------------------------------------
-//  SPI.c
-//  Patrick Kennedy
-//
-//--------------------------------------------------------------------------
+/*! \file SPI.c \brief Simple SPI library for AVR. */
+//-----------------------------------------------------------------------------
+//  Filename   : SPI.c
+//  Title      : Simple SPI library for AVR
+//  Author     : Patrick Kennedy (PK3)
+//  Created    : 08/12/2016
+//  Modified   : 02/26/2018
+//  Version    : 0.1
+//  Description:
+//    Fosc is assumed to be 16MHz, resulting baud rate is 1MHz
+//-----------------------------------------------------------------------------
 
 #include <avr/io.h>
 #include "SPI.h"

@@ -1,11 +1,15 @@
-// -------------------------------------------------------------
-// USART.c
-// Patrick Kennedy
-//
-// Basic functions for simple USART communication
-// Referenced from ATMega Datasheet
-//
-// -------------------------------------------------------------
+/*! \file USART.c \brief Simple USART library for AVR. */
+//-----------------------------------------------------------------------------
+//  Filename   : USART.c
+//  Title      : Simple USART library for AVR
+//  Author     : Patrick Kennedy (PK3)
+//  Created    : 08/20/2016
+//  Modified   : 02/26/2018
+//  Version    : 0.1
+//  Description:
+//     Basic functions for simple USART communication
+//     Referenced from ATMega Datasheet
+//-----------------------------------------------------------------------------
 
 #include "USART.h"
 #include <avr/io.h>

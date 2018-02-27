@@ -1,12 +1,19 @@
-//-----------------------------------------------------------------
-//  MCP2515.h
-//  Patrick Kennedy
+/*! \file MCP2515.h \brief Simple library for MCP2515 operation with AVR. */
+//-----------------------------------------------------------------------------
+//  Filename   : MCP2515.h
+//  Title      : Simple library for MCP2515 operation with AVR
+//  Author     : Patrick Kennedy
+//  Created    : 08/20/2016
+//  Modified   : 02/26/2018
+//  Version    : 0.1
+//  Description:
+//    Basic functions for simple MCP2515 operation
+//    Referenced from MCP2515 Datasheet
 //
-//  Support file for MCP2515 operation
-//------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 
-#ifndef MCP2515_H
-#define MCP2515_H
+#ifndef GKDAQ_MCP2515_H
+#define GKDAQ_MCP2515_H
 
 #include "MCP2515_def.h"
 #include "PinDefinitions.h"
@@ -61,4 +68,4 @@ void MCP2515_RTS(uint8_t txBuff);
 
 
 
-#endif // MCP2515_H
+#endif  // GKDAQ_MCP2515_H

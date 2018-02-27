@@ -1,9 +1,17 @@
-// ------------------------------------------------------
-// pin_definitions.h
-// Patrick Kennedy
-//
-// Pin definitions for GKDAQ
-// ------------------------------------------------------
+/*! \file PinDefinitions.h \brief Definition of AVR pins/ports used in GKDAQ.*/
+//-----------------------------------------------------------------------------
+//  Filename   : PinDefinitions.h
+//  Title      : Definition of AVR pins/ports/etc used by main
+//  Author     : Patrick Kennedy (PK3)
+//  Created    : 08/01/2016
+//  Modified   : 02/26/2018
+//  Version    : 0.1
+//  Description:
+//     Definitions for AVR ports/pins/etc
+//-----------------------------------------------------------------------------
+
+#ifndef GKDAQ_PIN_DEFINITIONS
+#define GKDAQ_PIN_DEFINITIONS
 
 // LED Outputs
 #define LED_PORT    PORTD
@@ -62,3 +70,5 @@
 #define I2C_SCL_PORT    PORTC
 #define I2C_SCL_PIN     PINC
 #define I2C_SCL_DDR    	DDRC
+
+#endif  // GKDAQ_PIN_DEFINITIONS

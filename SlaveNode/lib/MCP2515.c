@@ -1,17 +1,22 @@
-//-------------------------------------------------
-//  MCP2515.c
-//  Patrick Kennedy
-//
-//  Contains functions for MCP2515 operation
-//-------------------------------------------------
-
+/*! \file MCP2515.c \brief Simple library for MCP2515 operation with AVR. */
+//-----------------------------------------------------------------------------
+//  Filename   : MCP2515.c
+//  Title      : Simple library for MCP2515 operation with AVR
+//  Author     : Patrick Kennedy
+//  Created    : 08/20/2016
+//  Modified   : 02/26/2018
+//  Version    : 0.1
+//  Description:
+//     Basic functions for simple MCP2515 operation
+//     Referenced from MCP2515 Datasheet
+//-----------------------------------------------------------------------------
 
 #include <avr/io.h>
 #include "SPI.h"
 #include "MCP2515.h"
 #include "USART.h"
 
-// Used for
+// Used for selecting/deselecting CAN chip
 #define CAN_SELECT    SPI_PORT &= ~(1 << SPI_CAN_SS)
 #define CAN_DESELECT  SPI_PORT |= (1 << SPI_CAN_SS)
 
