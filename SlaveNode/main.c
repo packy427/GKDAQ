@@ -1,3 +1,4 @@
+/*! \file Main.c \brief GKDAQ Main File. */
 //-----------------------------------------------------------------------------
 //  Filename   : Main.c
 //  Title      : Main function for GKDAQ slave nodes
@@ -29,6 +30,8 @@
 #define CAN_SELECT    SPI_PORT &= ~(1 << SPI_CAN_SS)
 #define CAN_DESELECT  SPI_PORT |= (1 << SPI_CAN_SS)
 
+#define WRITE_VALUES_TO_EEPROM 1
+
 /*== GLOBAL VARIABLES ==*/
 uint8_t NodeAddress;
 bool volatile CALIBRATION_MODE; // Calib mode flag
@@ -50,11 +53,11 @@ enum MEASUREMENTS{
     M_NOMEASUREMENT     = 0,  // No measurement
     M_ENGINETEMP        = 1,  // AD8495
     M_EXHAUSTTEMP       = 2,  // AD8495
-    M_ENGINESPEED       = 3,  // PK0010
-    M_AXLESPEED         = 4,  // PK0020
-    M_THROTTLEPOSITION  = 5,  // PK0030
-    M_BRAKEPOSITION     = 6,  // PK0040
-    M_STEERINGANGLE     = 7,  // PK0050
+    M_ENGINESPEED       = 3,  // PJK0010
+    M_AXLESPEED         = 4,  // PJK0020
+    M_THROTTLEPOSITION  = 5,  // PJK0030
+    M_BRAKEPOSITION     = 6,  // PJK0040
+    M_STEERINGANGLE     = 7,  // PJK0050
     M_AMBIENTTEMP       = 8,  // TMP36
     M_ACCGYRO           = 9,  // MPU6050
     M_ACCGYROMAG        = 10, // MPU9250
@@ -81,7 +84,23 @@ enum CANIDs{
     ID_AMBIENTTEMP      = 0x40,
     ID_HUMIDITY         = 0x41
 };
+enum EEPROM{
+  EE_NODEADDR = 0x00,
+  EE_IO_A0 = 0x01,
+  EE_IO_A1 = 0x02,
+  EE_IO_A2 = 0x03,
+  EE_IO_A3 = 0x04,
+  EE_IO_D0 = 0x05,
+  EE_IO_I2C = 0x06,
+  EE_IO_UART = 0x07,
+  EE_IO_SPI = 0x08
+};
 
+// Functions
+void InitializeSensors(uint8_t, uint8_t);
+void CalibrationRoutine(void);
+void MeasurementRoutine(uint8_t, uint8_t);
+void LoopbackTest(void);
 
 /* INTERRUPT ROUTINES TO BE IMPLEMENTED
 ISR(){
@@ -101,37 +120,10 @@ ISR(UART_RX){
 int main(void){
   /*== VARIABLE DECLARATIONS ==*/
   uint8_t measurements[8];
+  uint8_t ioPort = IO_A0;
 
   /*== INITIALIZATION ROUTINE ==*/
-
   _delay_ms(500); // Delay for 500ms, allow all devices to wake up
-
-  // Read EEPROM Values
-  /* NodeAddress = eeprom_read_byte(0x00);   // Node address
-  sensors[0] = eeprom_read_byte(0x01);    // Analog 0  (IO Port 0)
-  sensors[1] = eeprom_read_byte(0x02);    // Analog 1  (IO Port 1)
-  sensors[2] = eeprom_read_byte(0x03);    // Analog 2  (IO Port 2)
-  sensors[3] = eeprom_read_byte(0x04);    // Analog 3  (IO Port 3)
-  sensors[4] = eeprom_read_byte(0x05);    // Digital 0 (IO Port 4)
-  sensors[5] = eeprom_read_byte(0x06);    // I2C (TWI) (IO Port 5)
-  sensors[6] = eeprom_read_byte(0x07);    // UART      (IO Port 6)
-  sensors[7] = eeprom_read_byte(0x08);    // SPI       (IO Port 7)
-
-  // Make Decisions Based On EEPROM Values
-  */
-
-  // Node specific information (change for each node)
-  NodeAddress = 0x01;
-
-  // Define measurements taken on each IO channel
-  measurements[IO_A0]    = M_NOMEASUREMENT;   // A0
-  measurements[IO_A1]    = M_NOMEASUREMENT;   // A1
-  measurements[IO_A2]    = M_NOMEASUREMENT;   // A2
-  measurements[IO_A3]    = M_NOMEASUREMENT;   // A3
-  measurements[IO_D0]    = M_NOMEASUREMENT;   // D0
-  measurements[IO_I2C]   = M_NOMEASUREMENT;   // I2C
-  measurements[IO_UART]  = M_NOMEASUREMENT;   // Serial
-  measurements[IO_SPI]   = M_NOMEASUREMENT;   // SPI
 
   // Configure Hardware
   USART_Init();     // Configure serial
@@ -139,19 +131,66 @@ int main(void){
   MCP2515_Init();   // Configure MCP2515    TODO: MAKE SURE INTERRUPT IS GENERATED ON MSG RCV, FILTER out all msgs >0x0F
   Analog_Init();    // Configure analog inputs
 
+  if(WRITE_VALUES_TO_EEPROM == 1){
+    eeprom_write_byte((uint16_t)*EE_NODEADDR,(uint8_t) 0);
+    eeprom_write_byte((uint16_t)*EE_IO_A0,(uint8_t) 0);
+    eeprom_write_byte((uint16_t)*EE_IO_A1,(uint8_t) 0);
+    eeprom_write_byte((uint16_t)*EE_IO_A2,(uint8_t) 0);
+    eeprom_write_byte((uint16_t)*EE_IO_A3,(uint8_t) 0);
+    eeprom_write_byte((uint16_t)*EE_IO_D0,(uint8_t) 0);
+    eeprom_write_byte((uint16_t)*EE_IO_I2C,(uint8_t) 0);
+    eeprom_write_byte((uint16_t)*EE_IO_UART,(uint8_t) 0);
+    eeprom_write_byte((uint16_t)*EE_IO_SPI,(uint8_t) 0);
+
+    _delay_ms(250);   // Wait after EEPROM write
+  }
+
+  // Read EEPROM Values
+  NodeAddress           = eeprom_read_byte((uint16_t)*EE_NODEADDR);   // Node address
+  measurements[IO_A0]   = eeprom_read_byte((uint16_t)*EE_IO_A0);      // Analog 0  (IO Port 0)
+  measurements[IO_A1]   = eeprom_read_byte((uint16_t)*EE_IO_A1);      // Analog 1  (IO Port 1)
+  measurements[IO_A2]   = eeprom_read_byte((uint16_t)*EE_IO_A2);      // Analog 2  (IO Port 2)
+  measurements[IO_A3]   = eeprom_read_byte((uint16_t)*EE_IO_A3);      // Analog 3  (IO Port 3)
+  measurements[IO_D0]   = eeprom_read_byte((uint16_t)*EE_IO_D0);      // Digital 0 (IO Port 4)
+  measurements[IO_I2C]  = eeprom_read_byte((uint16_t)*EE_IO_I2C);     // I2C (TWI) (IO Port 5)
+  measurements[IO_UART] = eeprom_read_byte((uint16_t)*EE_IO_UART);    // UART      (IO Port 6)
+  measurements[IO_SPI]  = eeprom_read_byte((uint16_t)*EE_IO_SPI);     // SPI       (IO Port 7)
+
+  // Initialize Connected Sensors Based On EEPROM Values
+  for(uint8_t io = IO_A0; io <= IO_SPI; io++) {
+    InitializeSensors(measurements[io], io);
+  }
 
   // Loop
   while(1){
+    MeasurementRoutine(measurements[ioPort], ioPort);
+    ioPort++;
 
-
-
+    // If looped through all io, repeat
+    if(ioPort > IO_SPI){
+      ioPort = IO_A0;
+    }
+    _delay_ms(250);
   }
 
   // Never should reach here
   return 0;
 }
 
-
+void InitializeSensor(uint8_t Measurement, uint8_t IOPort){
+  if(Measurement == M_NOMEASUREMENT){
+    return;   // Break out early if no sensor connected
+  }
+  else if(Measurement == M_ACCGYRO){
+    // TODO: ADD INIT CODE FOR MPU6050
+  }
+  else if(Measurement == M_ACCGYROMAG){
+    // TODO: ADD INIT CODE FOR MPU9250
+  }
+  else if(Measurement == M_GPS){
+    // Todo: Add init code for MTK3339
+  }
+}
 
 void CalibrationRoutine(){
   uint8_t rxBuffer;
@@ -184,7 +223,7 @@ void CalibrationRoutine(){
   return;
 }
 
-void UpdateRoutine(uint8_t meas, uint8_t ioPort){
+void MeasurementRoutine(uint8_t Measurement, uint8_t IoPort){
   uint64_t data;
   if(meas == M_NOMEASUREMENT){
     return;
@@ -269,6 +308,7 @@ void UpdateRoutine(uint8_t meas, uint8_t ioPort){
       // data = Si7021_GetTemperature()
       MCP2515_SendCANMessage(MSG_STD, ID_AMBIENTTEMP, data, 2);
       // data = Si7021_GetHumidity()
+
       MCP2515_SendCANMessage(MSG_STD, ID_HUMIDITY, data, 2);
       break;
   }
