@@ -62,7 +62,8 @@ enum MEASUREMENTS{
     M_ACCGYRO           = 9,  // MPU6050
     M_ACCGYROMAG        = 10, // MPU9250
     M_GPS               = 11, // MTK3339
-    M_TEMPHUMIDITY      = 12  // Si7021
+    M_TEMPHUMIDITY      = 12, // Si7021
+    M_TESTPOT           = 255 // Test potentiometer
 };
 enum CANIDs{
     ID_CAL_START        = 0x01,
@@ -82,7 +83,8 @@ enum CANIDs{
     ID_BRAKEPOSITION    = 0x31,
     ID_STEERINGANGLE    = 0x32,
     ID_AMBIENTTEMP      = 0x40,
-    ID_HUMIDITY         = 0x41
+    ID_HUMIDITY         = 0x41,
+    ID_TESTPOT          = 0x7F
 };
 enum EEPROM{
   EE_NODEADDR = 0x00,
@@ -223,7 +225,7 @@ void CalibrationRoutine(){
   return;
 }
 
-void MeasurementRoutine(uint8_t Measurement, uint8_t IoPort){
+void MeasurementRoutine(uint8_t Measurement, uint8_t IOPort){
   uint64_t data;
   if(meas == M_NOMEASUREMENT){
     return;
@@ -310,6 +312,15 @@ void MeasurementRoutine(uint8_t Measurement, uint8_t IoPort){
       // data = Si7021_GetHumidity()
 
       MCP2515_SendCANMessage(MSG_STD, ID_HUMIDITY, data, 2);
+      break;
+
+    // Test potentiometer
+    case M_TESTPOT:
+      uint16_t potValue;
+      potValue = TestPot_GetValue(IoPort);
+      PrintDecimalWord(potValue);
+      PrintString("\r\n");
+      MCP2515_SendCANMessage(MSG_STD, ID_TESTPOT, potValue, 1);
       break;
   }
 }

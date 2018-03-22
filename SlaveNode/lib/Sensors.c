@@ -12,6 +12,14 @@
 //-----------------------------------------------------------------------------
 
 #include "Sensors.h"
+#include "SPI.c"
+#include "USART.c"
+#include "Analog.c"
+
+// Test Potentiometer
+uint16_t TestPot_GetValue(uint8_t IOPort){
+  return GetAnalogInput(IOPort);
+}
 
 // AD8495 Temperature Sensor
 uint16_t AD8495_GetTemperature(uint8_t IOPort){

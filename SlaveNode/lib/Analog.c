@@ -22,7 +22,7 @@ void Analog_Init(){
 }
 
 uint16_t GetAnalogInput(uint8_t AnalogInputPin){
-  ADMUX &= ~MUX_ALL;  // Clear all mux bits, resets to A0 as ADC input
+  ADMUX &= (0 << MUX0) & (0 << MUX1) & (0 << MUX2);  // Clear all mux bits, resets to A0 as ADC input
 
   if(AnalogInputPin == 1){
     ADMUX |= (1 << MUX0); // Set A1 as ADC input
