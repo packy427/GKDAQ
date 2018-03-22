@@ -66,7 +66,7 @@ void MCP2515_ReceiveCANMessage(uint8_t *type, uint32_t *ID, uint64_t *data){
   uint8_t rxStatus;
   uint8_t rx0;
   uint8_t rx1;
-  uint8_t filter;
+  //uint8_t filter; Unused in current implementation
 
   CAN_SELECT;
   SPI_TransmitByte(MCP_RXSTATUS);
@@ -96,14 +96,14 @@ void MCP2515_ReceiveCANMessage(uint8_t *type, uint32_t *ID, uint64_t *data){
     if ((*type == MSG_EXT) | (*type == MSG_STD)){
       CAN_SELECT;
       SPI_TransmitByte(MCP_READRXB0DATA);
-      *data = (uint64_t)(SPI_RecieveByte() << 56);
-      *data = (uint64_t)(SPI_RecieveByte() << 48);
-      *data = (uint64_t)(SPI_RecieveByte() << 40);
-      *data = (uint64_t)(SPI_RecieveByte() << 32);
-      *data = (uint64_t)(SPI_RecieveByte() << 24);
-      *data = (uint64_t)(SPI_RecieveByte() << 16);
-      *data = (uint64_t)(SPI_RecieveByte() << 8);
-      *data = (uint64_t)(SPI_RecieveByte() << 0);
+      *data = ((uint64_t) SPI_RecieveByte()) << 56;
+      *data += ((uint64_t) SPI_RecieveByte()) << 48;
+      *data += ((uint64_t) SPI_RecieveByte()) << 40;
+      *data += ((uint64_t) SPI_RecieveByte()) << 32;
+      *data += ((uint64_t) SPI_RecieveByte()) << 24;
+      *data += ((uint64_t) SPI_RecieveByte()) << 16;
+      *data += ((uint64_t) SPI_RecieveByte()) << 8;
+      *data += ((uint64_t) SPI_RecieveByte()) << 0;
       CAN_DESELECT;
     }
   }

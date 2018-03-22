@@ -34,9 +34,9 @@
 
 /*== GLOBAL VARIABLES ==*/
 uint8_t NodeAddress;
-bool volatile CALIBRATION_MODE; // Calib mode flag
-bool volatile CAN_RCV0_FLAG;    // Set on CAN msg rcv
-bool volatile CAN_RCV1_FLAG;    // Set on can msg rcv
+volatile int CALIBRATION_MODE; // Calib mode flag
+volatile int CAN_RCV0_FLAG;    // Set on CAN msg rcv
+volatile int CAN_RCV1_FLAG;    // Set on can msg rcv
 
 // Enumerations
 enum IOPORTS{
@@ -119,7 +119,7 @@ ISR(UART_RX){
 }
 */
 
-int main(void){
+int main(void) {
   /*== VARIABLE DECLARATIONS ==*/
   uint8_t measurements[8];
   uint8_t ioPort = IO_A0;
@@ -133,39 +133,41 @@ int main(void){
   MCP2515_Init();   // Configure MCP2515    TODO: MAKE SURE INTERRUPT IS GENERATED ON MSG RCV, FILTER out all msgs >0x0F
   Analog_Init();    // Configure analog inputs
 
-  if(WRITE_VALUES_TO_EEPROM == 1){
-    eeprom_write_byte((uint16_t)*EE_NODEADDR,(uint8_t) 0);
-    eeprom_write_byte((uint16_t)*EE_IO_A0,(uint8_t) 0);
-    eeprom_write_byte((uint16_t)*EE_IO_A1,(uint8_t) 0);
-    eeprom_write_byte((uint16_t)*EE_IO_A2,(uint8_t) 0);
-    eeprom_write_byte((uint16_t)*EE_IO_A3,(uint8_t) 0);
-    eeprom_write_byte((uint16_t)*EE_IO_D0,(uint8_t) 0);
-    eeprom_write_byte((uint16_t)*EE_IO_I2C,(uint8_t) 0);
-    eeprom_write_byte((uint16_t)*EE_IO_UART,(uint8_t) 0);
-    eeprom_write_byte((uint16_t)*EE_IO_SPI,(uint8_t) 0);
+  if (WRITE_VALUES_TO_EEPROM == 1) {
+    eeprom_write_byte((uint16_t) EE_NODEADDR, (uint8_t) 0);
+    eeprom_write_byte((uint16_t) EE_IO_A0, (uint8_t) 0);
+    eeprom_write_byte((uint16_t) EE_IO_A1, (uint8_t) 0);
+    eeprom_write_byte((uint16_t) EE_IO_A2, (uint8_t) 0);
+    eeprom_write_byte((uint16_t) EE_IO_A3, (uint8_t) 0);
+    eeprom_write_byte((uint16_t) EE_IO_D0, (uint8_t) 0);
+    eeprom_write_byte((uint16_t) EE_IO_I2C, (uint8_t) 0);
+    eeprom_write_byte((uint16_t) EE_IO_UART, (uint8_t) 0);
+    eeprom_write_byte((uint16_t) EE_IO_SPI, (uint8_t) 0);
 
     _delay_ms(250);   // Wait after EEPROM write
   }
 
   // Read EEPROM Values
-  NodeAddress           = eeprom_read_byte((uint16_t)*EE_NODEADDR);   // Node address
-  measurements[IO_A0]   = eeprom_read_byte((uint16_t)*EE_IO_A0);      // Analog 0  (IO Port 0)
-  measurements[IO_A1]   = eeprom_read_byte((uint16_t)*EE_IO_A1);      // Analog 1  (IO Port 1)
-  measurements[IO_A2]   = eeprom_read_byte((uint16_t)*EE_IO_A2);      // Analog 2  (IO Port 2)
-  measurements[IO_A3]   = eeprom_read_byte((uint16_t)*EE_IO_A3);      // Analog 3  (IO Port 3)
-  measurements[IO_D0]   = eeprom_read_byte((uint16_t)*EE_IO_D0);      // Digital 0 (IO Port 4)
-  measurements[IO_I2C]  = eeprom_read_byte((uint16_t)*EE_IO_I2C);     // I2C (TWI) (IO Port 5)
-  measurements[IO_UART] = eeprom_read_byte((uint16_t)*EE_IO_UART);    // UART      (IO Port 6)
-  measurements[IO_SPI]  = eeprom_read_byte((uint16_t)*EE_IO_SPI);     // SPI       (IO Port 7)
+  NodeAddress = eeprom_read_byte((uint16_t) EE_NODEADDR);   // Node address
+  measurements[IO_A0] = eeprom_read_byte((uint16_t) EE_IO_A0);      // Analog 0  (IO Port 0)
+  measurements[IO_A1] = eeprom_read_byte((uint16_t) EE_IO_A1);      // Analog 1  (IO Port 1)
+  measurements[IO_A2] = eeprom_read_byte((uint16_t) EE_IO_A2);      // Analog 2  (IO Port 2)
+  measurements[IO_A3] = eeprom_read_byte((uint16_t) EE_IO_A3);      // Analog 3  (IO Port 3)
+  measurements[IO_D0] = eeprom_read_byte((uint16_t) EE_IO_D0);      // Digital 0 (IO Port 4)
+  measurements[IO_I2C] = eeprom_read_byte((uint16_t) EE_IO_I2C);    // I2C (TWI) (IO Port 5)
+  measurements[IO_UART] = eeprom_read_byte((uint16_t) EE_IO_UART);  // UART      (IO Port 6)
+  measurements[IO_SPI] = eeprom_read_byte((uint16_t) EE_IO_SPI);    // SPI       (IO Port 7)
 
   // Initialize Connected Sensors Based On EEPROM Values
-  for(uint8_t io = IO_A0; io <= IO_SPI; io++) {
+  for (uint8_t io = IO_A0; io <= IO_SPI; io++) {
     InitializeSensors(measurements[io], io);
   }
 
   // Loop
-  while(1){
-    MeasurementRoutine(measurements[ioPort], ioPort);
+  while (1) {
+    MeasurementRoutine(M_TESTPOT, IO_A0);
+    _delay_ms(1000);
+    /*
     ioPort++;
 
     // If looped through all io, repeat
@@ -174,9 +176,10 @@ int main(void){
     }
     _delay_ms(250);
   }
-
-  // Never should reach here
-  return 0;
+  */
+    // Never should reach here
+    return 0;
+  }
 }
 
 void InitializeSensor(uint8_t Measurement, uint8_t IOPort){
@@ -230,52 +233,52 @@ void MeasurementRoutine(uint8_t Measurement, uint8_t IOPort){
   if(meas == M_NOMEASUREMENT){
     return;
   }
-  switch(meas){
+  switch(Measurement){
     // Analog Engine Head Temperature Sensor
     case M_ENGINETEMP:
-      data = GetAnalogInput(ioPort);
+      data = GetAnalogInput(IOPort);
       MCP2515_SendCANMessage(MSG_STD, ID_ENGINETEMP, data, 2);
       break;
 
     // Analog Exhaust Gas Temperature Sensor
     case M_EXHAUSTTEMP:
-      data = GetAnalogInput(ioPort);
+      data = GetAnalogInput(IOPort);
       MCP2515_SendCANMessage(MSG_STD, ID_EXHAUSTTEMP, data, 2);
       break;
 
     // Analog Tachometer (Engine Speed) Sensor
     case M_ENGINESPEED:
-      data = GetAnalogInput(ioPort);
+      data = GetAnalogInput(IOPort);
       MCP2515_SendCANMessage(MSG_STD, ID_ENGINESPEED, data, 2);
       break;
 
     // Analog Tachometer (Axle Speed) Sensor
     case M_AXLESPEED:
-      data = GetAnalogInput(ioPort);
+      data = GetAnalogInput(IOPort);
       MCP2515_SendCANMessage(MSG_STD, ID_AXLESPEED, data, 2);
       break;
 
     // Analog Throttle Position Sensor
     case M_THROTTLEPOSITION:
-      data = GetAnalogInput(ioPort);
+      data = GetAnalogInput(IOPort);
       MCP2515_SendCANMessage(MSG_STD, ID_THROTTLEPOSITION, data, 2);
       break;
 
     // Analog Brake Position Sensor
     case M_BRAKEPOSITION:
-      data = GetAnalogInput(ioPort);
+      data = GetAnalogInput(IOPort);
       MCP2515_SendCANMessage(MSG_STD, ID_BRAKEPOSITION, data, 2);
       break;
 
     // Analog Steering Angle Sensor
     case M_STEERINGANGLE:
-      data = GetAnalogInput(ioPort);
+      data = GetAnalogInput(IOPort);
       MCP2515_SendCANMessage(MSG_STD, ID_STEERINGANGLE, data, 2);
       break;
 
     // Analog Ambient Temperature Sensor
     case M_AMBIENTTEMP:
-      data = GetAnalogInput(ioPort);
+      data = GetAnalogInput(IOPort);
       MCP2515_SendCANMessage(MSG_STD, ID_AMBIENTTEMP, data, 2);
       break;
 
@@ -316,11 +319,10 @@ void MeasurementRoutine(uint8_t Measurement, uint8_t IOPort){
 
     // Test potentiometer
     case M_TESTPOT:
-      uint16_t potValue;
-      potValue = TestPot_GetValue(IoPort);
-      PrintDecimalWord(potValue);
+      data = TestPot_GetValue(IoPort);
+      PrintDecimalWord(data);
       PrintString("\r\n");
-      MCP2515_SendCANMessage(MSG_STD, ID_TESTPOT, potValue, 1);
+      MCP2515_SendCANMessage(MSG_STD, ID_TESTPOT, data, 1);
       break;
   }
 }

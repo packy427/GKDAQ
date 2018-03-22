@@ -12,13 +12,13 @@
 //-----------------------------------------------------------------------------
 
 #include <avr/io.h>
-#include Analog.h
+#include "Analog.h"
 
 #define MUX_ALL = (1 << MUX3) | (1 << MUX2) | (1 << MUX1) | (1 << MUX0)
 
 void Analog_Init(){
   ADMUX = (1 << REFS0);   // Set reference voltage to Vcc, A0 as input
-  ADCSRA = (1 << ADEN) | (1 << ADSP2);  // Enable ADC, CLK prescale 1/16
+  ADCSRA = (1 << ADEN);   // Enable ADC
 }
 
 uint16_t GetAnalogInput(uint8_t AnalogInputPin){

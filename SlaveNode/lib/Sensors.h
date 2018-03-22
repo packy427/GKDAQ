@@ -24,7 +24,7 @@ uint16_t PJK0010_GetEngineSpeed(uint8_t IOPort);
 uint16_t PJK0020_GetAxleSpeed(uint8_t IOPort);
 
 // PJK0030 Throttle Position Sensor
-uint16_t PJK0030_GetThrottlePosition(uint_t IOPort);
+uint16_t PJK0030_GetThrottlePosition(uint8_t IOPort);
 
 // PJK0040 Brake Position Sensor
 uint16_t PJK0040_GetBrakePosition(uint8_t IOPort);
@@ -54,7 +54,7 @@ void MPU9250_Calibrate(uint8_t IOPort);
 // MTK3339 GPS
 uint64_t MTK3339_GetPosition(uint8_t IOPort);
 
-void MTK3339_Initialize(uint8_t, IOPort);
+void MTK3339_Initialize(uint8_t IOPort);
 
 // Si7021 Temperature/Humidity Sensor
 uint16_t TMP36_GetTemperature(uint8_t IOPort);
