@@ -12,9 +12,9 @@
 //-----------------------------------------------------------------------------
 
 #include "Sensors.h"
-#include "SPI.c"
-#include "USART.c"
-#include "Analog.c"
+#include "SPI.h"
+#include "USART.h"
+#include "Analog.h"
 
 // Test Potentiometer
 uint16_t TestPot_GetValue(uint8_t IOPort){
@@ -37,7 +37,7 @@ uint16_t PJK0020_GetAxleSpeed(uint8_t IOPort){
 }
 
 // PJK0030 Throttle Position Sensor
-uint16_t PJK0030_GetThrottlePosition(uint_t IOPort){
+uint16_t PJK0030_GetThrottlePosition(uint8_t IOPort){
   return 0;
 }
 
@@ -91,7 +91,7 @@ uint64_t MTK3339_GetPosition(uint8_t IOPort){
   return 0;
 }
 
-void MTK3339_Initialize(uint8_t, IOPort){
+void MTK3339_Initialize(uint8_t IOPort){
   return;
 }
 

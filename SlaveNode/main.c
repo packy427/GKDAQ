@@ -20,11 +20,11 @@
 
 // Import Core Functionality Code
 #include "lib/PinDefinitions.h"   // AVR pin definitions
-#include "lib/MCP2515.c"  // MCP2515 SPI commands
-#include "lib/USART.c"    // UART register controls
-#include "lib/SPI.c"      // SPI register controls
-#include "lib/Analog.c"   // Analog register controls
-#include "lib/Sensors.c"  // Supported sensors
+#include "lib/MCP2515.h"  // MCP2515 SPI commands
+#include "lib/USART.h"    // UART register controls
+#include "lib/SPI.h"      // SPI register controls
+#include "lib/Analog.h"   // Analog register controls
+#include "lib/Sensors.h"  // Supported sensors
 
 // Set macros for MCP2515 SPI chip select
 #define CAN_SELECT    SPI_PORT &= ~(1 << SPI_CAN_SS)
@@ -133,6 +133,7 @@ int main(void) {
   MCP2515_Init();   // Configure MCP2515    TODO: MAKE SURE INTERRUPT IS GENERATED ON MSG RCV, FILTER out all msgs >0x0F
   Analog_Init();    // Configure analog inputs
 
+  /*
   if (WRITE_VALUES_TO_EEPROM == 1) {
     eeprom_write_byte((uint16_t) EE_NODEADDR, (uint8_t) 0);
     eeprom_write_byte((uint16_t) EE_IO_A0, (uint8_t) 0);
@@ -157,6 +158,16 @@ int main(void) {
   measurements[IO_I2C] = eeprom_read_byte((uint16_t) EE_IO_I2C);    // I2C (TWI) (IO Port 5)
   measurements[IO_UART] = eeprom_read_byte((uint16_t) EE_IO_UART);  // UART      (IO Port 6)
   measurements[IO_SPI] = eeprom_read_byte((uint16_t) EE_IO_SPI);    // SPI       (IO Port 7)
+  */
+
+  measurements[IO_A0] = M_TESTPOT;
+  measurements[IO_A1] = M_NOMEASUREMENT;
+  measurements[IO_A2] = M_NOMEASUREMENT;
+  measurements[IO_A3] = M_NOMEASUREMENT;
+  measurements[IO_D0] = M_NOMEASUREMENT;
+  measurements[IO_I2C] = M_NOMEASUREMENT;
+  measurements[IO_UART] = M_NOMEASUREMENT;
+  measurements[IO_SPI] = M_NOMEASUREMENT;
 
   // Initialize Connected Sensors Based On EEPROM Values
   for (uint8_t io = IO_A0; io <= IO_SPI; io++) {
