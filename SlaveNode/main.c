@@ -226,6 +226,7 @@ void CalibrationRoutine(){
 
       if(msgID == ID_CAL_CHANGEADDR){
         // Change node addr based on msgdata
+        msgData = msgData;
       }
       else if(msgID == ID_CAL_CHANGEIO){
         // change io port measurement based on msgdata
@@ -338,11 +339,9 @@ void MeasurementRoutine(uint8_t Measurement, uint8_t IOPort){
 }
 
 void LoopbackTest(){
-  uint8_t msgType;
   uint32_t msgID;
   uint64_t data;
   uint8_t ctrlTx0;
-  uint8_t ctrlTx1;
   uint8_t timeout;
   uint8_t att;
 
@@ -353,7 +352,6 @@ void LoopbackTest(){
     PrintString("Loopback Mode OK\r\n");
   }
 
-  sendData = 0;
   MCP2515_Write(0x6D, 0);
   MCP2515_Write(0x6C, 0);
   MCP2515_Write(0x6B, 0);
@@ -404,7 +402,6 @@ void LoopbackTest(){
   PrintString(" \r\n");
 
    _delay_ms(5000);
-   x = 1;
 }
 
 // EOF

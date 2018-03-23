@@ -14,6 +14,9 @@
 #ifndef GKDAQ_SENSORS_H
 #define GKDAQ_SENSORS_H
 
+// Test pot
+uint16_t TestPot_GetValue(uint8_t IOPort);
+
 // AD8495 Temperature Sensor
 uint16_t AD8495_GetTemperature(uint8_t IOPort);
 
