@@ -56,6 +56,12 @@ uint8_t MCP2515_GetEmptyTxBuffer();
 
 uint8_t MCP2515_GetFullRxBuffer();
 
+uint8_t MCP2515_ReadRxStatus();
+
+uint32_t MCP2515_ReadID(uint8_t rxBuff);
+
+uint64_t MCP2515_ReadData(uint8_t rxBuff);
+
 void MCP2515_Reset(uint8_t mode);
 
 void MCP2515_BitModify(uint8_t addr, uint8_t data, uint8_t mask);

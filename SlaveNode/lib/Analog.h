@@ -12,5 +12,9 @@
 //-----------------------------------------------------------------------------
 #ifndef GKDAQ_ANALOG_H
 #define GKDAQ_ANALOG_H
+void Analog_Init();
 
+uint16_t GetAnalogInput(uint8_t AnalogInputPin);
+
+uint16_t GetADC();
 #endif  //GKDAQ_ANALOG_H

@@ -122,7 +122,6 @@ ISR(UART_RX){
 int main(void) {
   /*== VARIABLE DECLARATIONS ==*/
   uint8_t measurements[8];
-  uint8_t ioPort = IO_A0;
 
   /*== INITIALIZATION ROUTINE ==*/
   _delay_ms(500); // Delay for 500ms, allow all devices to wake up
@@ -241,13 +240,13 @@ void CalibrationRoutine(){
 
 void MeasurementRoutine(uint8_t Measurement, uint8_t IOPort){
   uint64_t data;
-  if(meas == M_NOMEASUREMENT){
+  if(Measurement == M_NOMEASUREMENT){
     return;
   }
   switch(Measurement){
     // Analog Engine Head Temperature Sensor
     case M_ENGINETEMP:
-      data = GetAnalogInput(IOPort);
+      data = AD8495_GetTemperature(IOPort);
       MCP2515_SendCANMessage(MSG_STD, ID_ENGINETEMP, data, 2);
       break;
 
@@ -330,7 +329,7 @@ void MeasurementRoutine(uint8_t Measurement, uint8_t IOPort){
 
     // Test potentiometer
     case M_TESTPOT:
-      data = TestPot_GetValue(IoPort);
+      data = TestPot_GetValue(IOPort);
       PrintDecimalWord(data);
       PrintString("\r\n");
       MCP2515_SendCANMessage(MSG_STD, ID_TESTPOT, data, 1);
@@ -342,14 +341,10 @@ void LoopbackTest(){
   uint8_t msgType;
   uint32_t msgID;
   uint64_t data;
-  uint8_t c;
-  uint64_t sendData;
-  uint8_t ctrlCAN;
   uint8_t ctrlTx0;
   uint8_t ctrlTx1;
   uint8_t timeout;
   uint8_t att;
-  uint8_t x;
 
   if(MCP2515_SetCANMode(MODE_LOOPBACK)){
     PrintString("Loopback Mode Fail");

@@ -17,6 +17,9 @@
 // AD8495 Temperature Sensor
 uint16_t AD8495_GetTemperature(uint8_t IOPort);
 
+// MAX6675 Temperature Sensor
+uint16_t MAX6675_GetTemperature(uint8_t IOPort);
+
 // PJK0010 Engine Tachometer
 uint16_t PJK0010_GetEngineSpeed(uint8_t IOPort);
 
