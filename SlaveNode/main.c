@@ -240,8 +240,8 @@ void CalibrationRoutine(){
 }
 
 void MeasurementRoutine(uint8_t Measurement, uint8_t IOPort){
-  uint64_t data;
-  if(Measurement == M_NOMEASUREMENT){
+  uint64_t data = 0;
+  if(Measurement == M_NOMEASUREMENT) {
     return;
   }
   switch(Measurement){
