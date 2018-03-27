@@ -20,17 +20,15 @@
 
 // Import Core Functionality Code
 #include "lib/PinDefinitions.h"   // AVR pin definitions
-#include "lib/MCP2515.h"  // MCP2515 SPI commands
-#include "lib/USART.h"    // UART register controls
-#include "lib/SPI.h"      // SPI register controls
-#include "lib/Analog.h"   // Analog register controls
-#include "lib/Sensors.h"  // Supported sensors
+#include "lib/MCP2515.c"  // MCP2515 SPI commands
+#include "lib/USART.c"    // USART register controls
+#include "lib/SPI.c"      // SPI register controls
+#include "lib/Analog.c"   // Analog register controls
+#include "lib/Sensors.c"  // Supported sensors
 
-// Set macros for MCP2515 SPI chip select
-#define CAN_SELECT    SPI_PORT &= ~(1 << SPI_CAN_SS)
-#define CAN_DESELECT  SPI_PORT |= (1 << SPI_CAN_SS)
-
+// Program options
 #define WRITE_VALUES_TO_EEPROM 1
+#define ENABLE_EEPROM 0
 
 /*== GLOBAL VARIABLES ==*/
 uint8_t NodeAddress;
@@ -50,41 +48,41 @@ enum IOPORTS{
     IO_SPI = 7
 };
 enum MEASUREMENTS{
-    M_NOMEASUREMENT     = 0,  // No measurement
-    M_ENGINETEMP        = 1,  // AD8495
-    M_EXHAUSTTEMP       = 2,  // AD8495
-    M_ENGINESPEED       = 3,  // PJK0010
-    M_AXLESPEED         = 4,  // PJK0020
-    M_THROTTLEPOSITION  = 5,  // PJK0030
-    M_BRAKEPOSITION     = 6,  // PJK0040
-    M_STEERINGANGLE     = 7,  // PJK0050
-    M_AMBIENTTEMP       = 8,  // TMP36
-    M_ACCGYRO           = 9,  // MPU6050
-    M_ACCGYROMAG        = 10, // MPU9250
-    M_GPS               = 11, // MTK3339
-    M_TEMPHUMIDITY      = 12, // Si7021
-    M_TESTPOT           = 255 // Test potentiometer
+    DATA_NONE     = 0,  // No measurement
+    DATA_ENGINETEMP        = 1,  // AD8495
+    DATA_EXHAUSTTEMP       = 2,  // AD8495
+    DATA_ENGINESPEED       = 3,  // PJK0010
+    DATA_AXLESPEED         = 4,  // PJK0020
+    DATA_THROTTLEPOSITION  = 5,  // PJK0030
+    DATA_BRAKEPOSITION     = 6,  // PJK0040
+    DATA_STEERINGANGLE     = 7,  // PJK0050
+    DATA_AMBIENTTEMP       = 8,  // TMP36
+    DATA_ACCGYRO           = 9,  // MPU6050
+    DATA_ACCGYROMAG        = 10, // MPU9250
+    DATA_GPS               = 11, // MTK3339
+    DATA_TEMPHUMIDITY      = 12, // Si7021
+    DATA_TESTPOT           = 255 // Test potentiometer
 };
 enum CANIDs{
-    ID_CAL_START        = 0x01,
-    ID_CAL_CHANGEADDR   = 0x02,
-    ID_CAL_CHANGEIO     = 0x03,
-    ID_CAL_RESET        = 0x04,
-    ID_CAL_EXIT         = 0x0F,
-    ID_ENGINETEMP       = 0x10,
-    ID_EXHAUSTTEMP      = 0x11,
-    ID_ENGINESPEED      = 0x12,
-    ID_GPS              = 0x20,
-    ID_ACCELERATION     = 0x21,
-    ID_HEADING          = 0x22,
-    ID_AXLESPEED        = 0x23,
-    ID_GYRATION         = 0x24,
-    ID_THROTTLEPOSITION = 0x30,
-    ID_BRAKEPOSITION    = 0x31,
-    ID_STEERINGANGLE    = 0x32,
-    ID_AMBIENTTEMP      = 0x40,
-    ID_HUMIDITY         = 0x41,
-    ID_TESTPOT          = 0x7F
+    CANID_CAL_START        = 0x01,
+    CANID_CAL_CHANGEADDR   = 0x02,
+    CANID_CAL_CHANGEIO     = 0x03,
+    CANID_CAL_RESET        = 0x04,
+    CANID_CAL_EXIT         = 0x0F,
+    CANID_ENGINETEMP       = 0x10,
+    CANID_EXHAUSTTEMP      = 0x11,
+    CANID_ENGINESPEED      = 0x12,
+    CANID_GPS              = 0x20,
+    CANID_ACCELERATION     = 0x21,
+    CANID_HEADING          = 0x22,
+    CANID_AXLESPEED        = 0x23,
+    CANID_GYRATION         = 0x24,
+    CANID_THROTTLEPOSITION = 0x30,
+    CANID_BRAKEPOSITION    = 0x31,
+    CANID_STEERINGANGLE    = 0x32,
+    CANID_AMBIENTTEMP      = 0x40,
+    CANID_HUMIDITY         = 0x41,
+    CANID_TESTPOT          = 0x7F
 };
 enum EEPROM{
   EE_NODEADDR = 0x00,
@@ -98,84 +96,91 @@ enum EEPROM{
   EE_IO_SPI = 0x08
 };
 
-// Functions
-void InitializeSensors(uint8_t, uint8_t);
+// Function Declarations
+void InitializeSensors(uint8_t*);
 void CalibrationRoutine(void);
 void MeasurementRoutine(uint8_t, uint8_t);
-void LoopbackTest(void);
+void ToByteArray(uint64_t, uint8_t*);
 
-/* INTERRUPT ROUTINES TO BE IMPLEMENTED
-ISR(){
-  // Interrupt for command mode, pin interrupt on
-  // 1) Read address
-  // 2) If ID matches calib msg then read data and match to node address
-  // 3) If node address matches, enter calib mode
-  CalibrationMode = true;
-}
-
-ISR(UART_RX){
-  // PARSE GPS
-  // Only identify the one message we want
-}
-*/
+// Global CAN
+uint8_t canData[MAX_CHAR_IN_MESSAGE];
+uint32_t canID;
+uint8_t canDLC;
+uint8_t canExtFlag;
+uint8_t canRTRFlag;
+uint8_t mcpMode;
+uint64_t data;      // Testing variable, delete in production code
 
 int main(void) {
   /*== VARIABLE DECLARATIONS ==*/
-  uint8_t measurements[8];
+  uint8_t ioData[8];
 
   /*== INITIALIZATION ROUTINE ==*/
-  _delay_ms(500); // Delay for 500ms, allow all devices to wake up
+  _delay_ms(100); // Delay for 100ms, allow all devices to wake up
 
   // Configure Hardware
   USART_Init();     // Configure serial
   SPI_Init();       // Configure SPI
-  MCP2515_Init();   // Configure MCP2515    TODO: MAKE SURE INTERRUPT IS GENERATED ON MSG RCV, FILTER out all msgs >0x0F
+  MCP2515_Init(MCP_STD, CAN_250KBPS, MCP_16MHZ);   // Only std IDs, 250kbaud bus, 16MHz crystal
   Analog_Init();    // Configure analog inputs
 
-  /*
-  if (WRITE_VALUES_TO_EEPROM == 1) {
-    eeprom_write_byte((uint16_t) EE_NODEADDR, (uint8_t) 0);
-    eeprom_write_byte((uint16_t) EE_IO_A0, (uint8_t) 0);
-    eeprom_write_byte((uint16_t) EE_IO_A1, (uint8_t) 0);
-    eeprom_write_byte((uint16_t) EE_IO_A2, (uint8_t) 0);
-    eeprom_write_byte((uint16_t) EE_IO_A3, (uint8_t) 0);
-    eeprom_write_byte((uint16_t) EE_IO_D0, (uint8_t) 0);
-    eeprom_write_byte((uint16_t) EE_IO_I2C, (uint8_t) 0);
-    eeprom_write_byte((uint16_t) EE_IO_UART, (uint8_t) 0);
-    eeprom_write_byte((uint16_t) EE_IO_SPI, (uint8_t) 0);
+#if ENABLE_EEPROM
+#if WRITE_VALUES_TO_EEPROM
+  // Write default values to the EEPROM on power up
+  eeprom_write_byte((uint8_t*) EE_NODEADDR, (uint8_t) 0);
+  eeprom_write_byte((uint8_t*) EE_IO_A0, (uint8_t) 0);
+  eeprom_write_byte((uint8_t*) EE_IO_A1, (uint8_t) 0);
+  eeprom_write_byte((uint8_t*) EE_IO_A2, (uint8_t) 0);
+  eeprom_write_byte((uint8_t*) EE_IO_A3, (uint8_t) 0);
+  eeprom_write_byte((uint8_t*) EE_IO_D0, (uint8_t) 0);
+  eeprom_write_byte((uint8_t*) EE_IO_I2C, (uint8_t) 0);
+  eeprom_write_byte((uint8_t*) EE_IO_UART, (uint8_t) 0);
+  eeprom_write_byte((uint8_t*) EE_IO_SPI, (uint8_t) 0);
 
-    _delay_ms(250);   // Wait after EEPROM write
-  }
-
+  _delay_ms(250);   // Wait after EEPROM write
+#endif
   // Read EEPROM Values
-  NodeAddress = eeprom_read_byte((uint16_t) EE_NODEADDR);   // Node address
-  measurements[IO_A0] = eeprom_read_byte((uint16_t) EE_IO_A0);      // Analog 0  (IO Port 0)
-  measurements[IO_A1] = eeprom_read_byte((uint16_t) EE_IO_A1);      // Analog 1  (IO Port 1)
-  measurements[IO_A2] = eeprom_read_byte((uint16_t) EE_IO_A2);      // Analog 2  (IO Port 2)
-  measurements[IO_A3] = eeprom_read_byte((uint16_t) EE_IO_A3);      // Analog 3  (IO Port 3)
-  measurements[IO_D0] = eeprom_read_byte((uint16_t) EE_IO_D0);      // Digital 0 (IO Port 4)
-  measurements[IO_I2C] = eeprom_read_byte((uint16_t) EE_IO_I2C);    // I2C (TWI) (IO Port 5)
-  measurements[IO_UART] = eeprom_read_byte((uint16_t) EE_IO_UART);  // UART      (IO Port 6)
-  measurements[IO_SPI] = eeprom_read_byte((uint16_t) EE_IO_SPI);    // SPI       (IO Port 7)
-  */
+  NodeAddress = eeprom_read_byte((uint8_t*) EE_NODEADDR);   // Node address
+  ioData[IO_A0] = eeprom_read_byte((uint8_t*) EE_IO_A0);      // Analog 0  (IO Port 0)
+  ioData[IO_A1] = eeprom_read_byte((uint8_t*) EE_IO_A1);      // Analog 1  (IO Port 1)
+  ioData[IO_A2] = eeprom_read_byte((uint8_t*) EE_IO_A2);      // Analog 2  (IO Port 2)
+  ioData[IO_A3] = eeprom_read_byte((uint8_t*) EE_IO_A3);      // Analog 3  (IO Port 3)
+  ioData[IO_D0] = eeprom_read_byte((uint8_t*) EE_IO_D0);      // Digital 0 (IO Port 4)
+  ioData[IO_I2C] = eeprom_read_byte((uint8_t*) EE_IO_I2C);    // I2C (TWI) (IO Port 5)
+  ioData[IO_UART] = eeprom_read_byte((uint8_t*) EE_IO_UART);  // UART      (IO Port 6)
+  ioData[IO_SPI] = eeprom_read_byte((uint8_t*) EE_IO_SPI);    // SPI       (IO Port 7)
+#else
+  // Skip EEPROM operations (for debugging)
+  ioData[IO_A0] = DATA_NONE;
+  ioData[IO_A1] = DATA_TESTPOT;
+  ioData[IO_A2] = DATA_NONE;
+  ioData[IO_A3] = DATA_NONE;
+  ioData[IO_D0] = DATA_NONE;
+  ioData[IO_I2C] = DATA_NONE;
+  ioData[IO_UART] = DATA_NONE;
+  ioData[IO_SPI] = DATA_NONE;
+#endif
 
-  measurements[IO_A0] = M_TESTPOT;
-  measurements[IO_A1] = M_NOMEASUREMENT;
-  measurements[IO_A2] = M_NOMEASUREMENT;
-  measurements[IO_A3] = M_NOMEASUREMENT;
-  measurements[IO_D0] = M_NOMEASUREMENT;
-  measurements[IO_I2C] = M_NOMEASUREMENT;
-  measurements[IO_UART] = M_NOMEASUREMENT;
-  measurements[IO_SPI] = M_NOMEASUREMENT;
-
-  // Initialize Connected Sensors Based On EEPROM Values
-  for (uint8_t io = IO_A0; io <= IO_SPI; io++) {
-    InitializeSensors(measurements[io], io);
-  }
+  // Test ToByteArray
+  data = 0x1122334455667788;
+  ToByteArray(data, canData);
+  PrintHexByte(canData[0]);
+  PrintHexByte(canData[1]);
+  PrintHexByte(canData[2]);
+  PrintHexByte(canData[3]);
+  PrintHexByte(canData[4]);
+  PrintHexByte(canData[5]);
+  PrintHexByte(canData[6]);
+  PrintHexByte(canData[7]);
 
   // Loop
   while (1) {
-    MeasurementRoutine(M_TESTPOT, IO_A0);
+    /*
+    data = TestPot_GetValue(IO_A1);
+    PrintDecimalWord(data);
+    PrintString("\r\n");
+    */
+    //MeasurementRoutine(DATA_TESTPOT, IO_A1);
     _delay_ms(1000);
     /*
     ioPort++;
@@ -192,18 +197,22 @@ int main(void) {
   }
 }
 
-void InitializeSensor(uint8_t Measurement, uint8_t IOPort){
-  if(Measurement == M_NOMEASUREMENT){
-    return;   // Break out early if no sensor connected
-  }
-  else if(Measurement == M_ACCGYRO){
-    // TODO: ADD INIT CODE FOR MPU6050
-  }
-  else if(Measurement == M_ACCGYROMAG){
-    // TODO: ADD INIT CODE FOR MPU9250
-  }
-  else if(Measurement == M_GPS){
-    // Todo: Add init code for MTK3339
+// Run specific initialization code for certain sensors
+void InitializeSensors(uint8_t* pIOData){
+  uint8_t ioData, i;
+
+  for (i = 0; i <= 7; i++) {
+    ioData = *(pIOData+i);   // Get next measurement
+
+    if (ioData == DATA_NONE) {
+      return;   // Break out early if no sensor connected
+    } else if (ioData == DATA_ACCGYRO) {
+      // TODO: ADD INIT CODE FOR MPU6050
+    } else if (ioData == DATA_ACCGYROMAG) {
+      // TODO: ADD INIT CODE FOR MPU9250
+    } else if (ioData == DATA_GPS) {
+      // Todo: Add init code for MTK3339
+    }
   }
 }
 
@@ -221,17 +230,17 @@ void CalibrationRoutine(){
         rxBuffer = 1;
       }
 
-      msgID = MCP2515_ReadID(rxBuffer);
-      msgData = MCP2515_ReadData(rxBuffer);
+      // Read CAN ID
+      // Read CAN data
 
-      if(msgID == ID_CAL_CHANGEADDR){
+      if(msgID == CANID_CAL_CHANGEADDR){
         // Change node addr based on msgdata
         msgData = msgData;
       }
-      else if(msgID == ID_CAL_CHANGEIO){
+      else if(msgID == CANID_CAL_CHANGEIO){
         // change io port measurement based on msgdata
       }
-      else if(msgID == ID_CAL_EXIT){
+      else if(msgID == CANID_CAL_EXIT){
         CALIBRATION_MODE = 0;
       }
     }
@@ -239,169 +248,87 @@ void CalibrationRoutine(){
   return;
 }
 
-void MeasurementRoutine(uint8_t Measurement, uint8_t IOPort){
-  uint64_t data = 0;
-  if(Measurement == M_NOMEASUREMENT) {
+void MeasurementRoutine(uint8_t IOData, uint8_t IOPort){
+  uint64_t rawData;
+  uint8_t arrData[MAX_CHAR_IN_MESSAGE];
+  if(IOData == DATA_NONE) {
     return;
   }
-  switch(Measurement){
+  switch(IOData){
     // Analog Engine Head Temperature Sensor
-    case M_ENGINETEMP:
-      data = AD8495_GetTemperature(IOPort);
-      MCP2515_SendCANMessage(MSG_STD, ID_ENGINETEMP, data, 2);
+    case DATA_ENGINETEMP:
+
       break;
 
     // Analog Exhaust Gas Temperature Sensor
-    case M_EXHAUSTTEMP:
-      data = GetAnalogInput(IOPort);
-      MCP2515_SendCANMessage(MSG_STD, ID_EXHAUSTTEMP, data, 2);
+    case DATA_EXHAUSTTEMP:
+
       break;
 
     // Analog Tachometer (Engine Speed) Sensor
-    case M_ENGINESPEED:
-      data = GetAnalogInput(IOPort);
-      MCP2515_SendCANMessage(MSG_STD, ID_ENGINESPEED, data, 2);
+    case DATA_ENGINESPEED:
+
       break;
 
     // Analog Tachometer (Axle Speed) Sensor
-    case M_AXLESPEED:
-      data = GetAnalogInput(IOPort);
-      MCP2515_SendCANMessage(MSG_STD, ID_AXLESPEED, data, 2);
+    case DATA_AXLESPEED:
+
       break;
 
     // Analog Throttle Position Sensor
-    case M_THROTTLEPOSITION:
-      data = GetAnalogInput(IOPort);
-      MCP2515_SendCANMessage(MSG_STD, ID_THROTTLEPOSITION, data, 2);
+    case DATA_THROTTLEPOSITION:
+
       break;
 
     // Analog Brake Position Sensor
-    case M_BRAKEPOSITION:
-      data = GetAnalogInput(IOPort);
-      MCP2515_SendCANMessage(MSG_STD, ID_BRAKEPOSITION, data, 2);
+    case DATA_BRAKEPOSITION:
+
       break;
 
     // Analog Steering Angle Sensor
-    case M_STEERINGANGLE:
-      data = GetAnalogInput(IOPort);
-      MCP2515_SendCANMessage(MSG_STD, ID_STEERINGANGLE, data, 2);
+    case DATA_STEERINGANGLE:
+
       break;
 
     // Analog Ambient Temperature Sensor
-    case M_AMBIENTTEMP:
-      data = GetAnalogInput(IOPort);
-      MCP2515_SendCANMessage(MSG_STD, ID_AMBIENTTEMP, data, 2);
+    case DATA_AMBIENTTEMP:
+
       break;
 
     // MPU6050 (I2C)
-    case M_ACCGYRO:
-      //data = MPU6050_GetAcceleration();
-      MCP2515_SendCANMessage(MSG_STD, ID_ACCELERATION, data, 6);
-      //data = MPU6050_GetGyration();
-      MCP2515_SendCANMessage(MSG_STD, ID_GYRATION, data, 6);
+    case DATA_ACCGYRO:
+
       break;
 
     // MPU9250
-    case M_ACCGYROMAG:
-      //data = mpu9205_GetAcceleration();
-      MCP2515_SendCANMessage(MSG_STD, ID_ACCELERATION, data, 6);
-      //data = MPU9250_GetGyration();
-      MCP2515_SendCANMessage(MSG_STD, ID_GYRATION, data, 6);
-      //data = MPU9250_GetGyration();
-      MCP2515_SendCANMessage(MSG_STD, ID_HEADING, data, 6);
+    case DATA_ACCGYROMAG:
+
       break;
 
     // MTK3339 GPS Module
-    case M_GPS:
-      // TODO: Need code w/ interrupts, ignore? Handled w/ cgps on RPi
-      //data = MTK3339_GetPosition();
-      MCP2515_SendCANMessage(MSG_STD, ID_GPS, data, 6);
+    case DATA_GPS:
+
       break;
 
     // Si7021 Temperature/Humidity Sensor
-    case M_TEMPHUMIDITY:
-      // TODO: Need code, low priority
-      // data = Si7021_GetTemperature()
-      MCP2515_SendCANMessage(MSG_STD, ID_AMBIENTTEMP, data, 2);
-      // data = Si7021_GetHumidity()
+    case DATA_TEMPHUMIDITY:
 
-      MCP2515_SendCANMessage(MSG_STD, ID_HUMIDITY, data, 2);
       break;
 
     // Test potentiometer
-    case M_TESTPOT:
-      data = TestPot_GetValue(IOPort);
+    case DATA_TESTPOT:
+      rawData = TestPot_GetValue(IOPort);
+      ToByteArray(rawData, arrData);
       PrintDecimalWord(data);
       PrintString("\r\n");
-      MCP2515_SendCANMessage(MSG_STD, ID_TESTPOT, data, 1);
+      MCP2515_SendMsg(arrData, CANID_TESTPOT, DLC_1, CAN_NO_EXT, CAN_NO_RTR);
       break;
   }
 }
 
-void LoopbackTest(){
-  uint32_t msgID;
-  uint64_t data;
-  uint8_t ctrlTx0;
-  uint8_t timeout;
-  uint8_t att;
-
-  if(MCP2515_SetCANMode(MODE_LOOPBACK)){
-    PrintString("Loopback Mode Fail");
-  }
-  else{
-    PrintString("Loopback Mode OK\r\n");
-  }
-
-  MCP2515_Write(0x6D, 0);
-  MCP2515_Write(0x6C, 0);
-  MCP2515_Write(0x6B, 0);
-  MCP2515_Write(0x6A, 0);
-  MCP2515_Write(0x69, 0);
-  MCP2515_Write(0x68, 0);
-  MCP2515_Write(0x67, 0);
-  MCP2515_Write(0x66, 0);
-
-  MCP2515_LoadID(0, MSG_STD, 0xBAE, 8);
-  MCP2515_LoadData(0, 0xABC);
-  PrintString("TX0DLC: ");
-  PrintBinaryByte(MCP2515_Read(0x35));
-  PrintString("\r\n");
-  MCP2515_Write(0x35, 0b00001000);
-  _delay_ms(100);
-  MCP2515_RTS(0);
-  ctrlTx0 = MCP2515_Read(TXB0CTRL) & (1 << TXREQ);
-  while(ctrlTx0 == 1 && att < timeout){
-    ctrlTx0 = MCP2515_Read(TXB0CTRL) & (1 << TXREQ);
-    TransmitByte(ctrlTx0);
-    att = att + 1;
-  }
-  PrintString("Rx Status : ");
-  PrintBinaryByte(MCP2515_ReadRxStatus());
-  PrintString(" \r\n");
-  data = MCP2515_ReadData(0);
-  PrintString("Read Data: ");
-  PrintHexByte((data >> 56) & 0xFF);
-  PrintHexByte((data >> 48) & 0xFF);
-  PrintHexByte((data >> 40) & 0xFF);
-  PrintHexByte((data >> 32) & 0xFF);
-  PrintHexByte((data >> 24) & 0xFF);
-  PrintHexByte((data >> 16) & 0xFF);
-  PrintHexByte((data >> 8) & 0xFF);
-  PrintHexByte((data >> 0) & 0xFF);
-  PrintString("\r\n");
-  PrintString("Receive ID Buffer");
-  PrintHexByte(MCP2515_Read(0x31));
-  PrintHexByte(MCP2515_Read(0x32));
-  PrintString("\r\n");
-  msgID = MCP2515_ReadID(0);
-  PrintString("Read ID: ");
-  PrintHexByte((msgID >> 24) & 0xFF);
-  PrintHexByte((msgID >> 16) & 0xFF);
-  PrintHexByte((msgID >> 8) & 0xFF);
-  PrintHexByte(msgID & 0xFF);
-  PrintString(" \r\n");
-
-   _delay_ms(5000);
+void ToByteArray(uint64_t value, uint8_t *array){
+  uint8_t i;
+  for(i = 0; i<MAX_CHAR_IN_MESSAGE; i++)
+    *(array+i) = (uint8_t) (value >> (8*i));
 }
-
 // EOF

@@ -33,12 +33,12 @@ uint8_t SPI_ExchangeByte(uint8_t txData){
   return SPDR;    // Return value of SPI shift register
 }
 
-void SPI_TransmitByte(uint8_t txData){
+void SPI_TransmitByte(uint8_t txData) {
   SPDR = txData;    // Load SPI shift register, transmission starts immediately
   loop_until_bit_is_set(SPSR, SPIF); // Check for completion
 }
 
-uint8_t SPI_RecieveByte(){
+uint8_t SPI_ReceiveByte(){
   SPDR = 0;   // Send 0 byte
   loop_until_bit_is_set(SPSR, SPIF); // Check for completion
   return SPDR;    // Return value of SPI shift register

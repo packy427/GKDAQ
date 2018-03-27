@@ -5,7 +5,7 @@
 ##########------------------------------------------------------##########
 
 MCU   = atmega328p
-F_CPU = 1000000UL  
+F_CPU = 1600000UL  
 BAUD  = 9600UL
 ## Also try BAUD = 19200 or 38400 if you're feeling lucky.
 
@@ -20,9 +20,9 @@ LIBDIR = ./lib
 ##########        (Can override.  See bottom of file.)          ##########
 ##########------------------------------------------------------##########
 
-PROGRAMMER_TYPE = avrisp
+PROGRAMMER_TYPE = usbtiny
 # extra arguments to avrdude: baud rate, chip type, -F flag, etc.
-PROGRAMMER_ARGS = -b 19200 -P COM3
+PROGRAMMER_ARGS = -b 9600 -P COM4
 
 ##########------------------------------------------------------##########
 ##########                  Program Locations                   ##########

@@ -71,4 +71,7 @@
 #define I2C_SCL_PIN     PINC
 #define I2C_SCL_DDR    	DDRC
 
+// Digital pins
+#define CAN_CS_PIN      10    // Digital pin 10, PB2
+
 #endif  // GKDAQ_PIN_DEFINITIONS

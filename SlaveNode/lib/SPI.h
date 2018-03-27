@@ -18,7 +18,7 @@
 void SPI_Init();  // Initialize SPI
 uint8_t SPI_ExchangeByte(uint8_t txData);   // Send and read byte
 void SPI_TransmitByte(uint8_t txData);  // Send byte and ignore incoming byte
-uint8_t SPI_RecieveByte();  // Send 0 and read incoming byte
+uint8_t SPI_ReceiveByte();  // Send 0 and read incoming byte
 
 
 #endif  // GKDAQ_SPI_H
