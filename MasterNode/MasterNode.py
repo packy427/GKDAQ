@@ -121,8 +121,8 @@ class CANID(Enum):
 
 
 # == LCD INIT == #
-LCD_RS = 27
-LCD_EN = 22
+LCD_RS = 17
+LCD_EN = 27
 LCD_D4 = 25
 LCD_D5 = 24
 LCD_D6 = 23
@@ -151,15 +151,19 @@ LCD.set_cursor(0, 2)
 LCD.message("Test Pot: ")
 
 # == MAIN LOOP == #
-while 1:
-    rx_message = bus.recv(0.5)     # Read receive buffer, timeout after 0.5 secs
-    if rx_message is not None:
-        print("<i> Receive buffer has message")
-        decode_message(rx_message)
-        LCD.set_cursor(12, 2)
-        LCD.message(M_TEST_POT)
-    else:
-        print("<i> Receive buffer empty")
+def main():
+	while 1:
+	    rx_message = bus.recv(0.5)     # Read receive buffer, timeout after 0.5 secs
+	    if rx_message is not None:
+        	print("<i> Receive buffer has message")
+       		decode_message(rx_message)
+        	LCD.set_cursor(12, 2)
+        	LCD.message(M_TEST_POT)
+   	else:
+        	print("<i> Receive buffer empty")
+
+if __name__ == "__main__":
+	main()
 
 
 
