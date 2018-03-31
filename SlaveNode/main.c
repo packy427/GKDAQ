@@ -100,6 +100,7 @@ enum EEPROM{
 void InitializeSensors(uint8_t*);
 void CalibrationRoutine(void);
 void MeasurementRoutine(uint8_t, uint8_t);
+void TestRoutine(void);
 void ToByteArray(uint64_t, uint8_t*);
 
 // Global CAN
@@ -121,8 +122,9 @@ int main(void) {
   // Configure Hardware
   USART_Init();     // Configure serial
   SPI_Init();       // Configure SPI
-  MCP2515_Init(MCP_STD, CAN_250KBPS, MCP_16MHZ);   // Only std IDs, 250kbaud bus, 16MHz crystal
+  MCP2515_Init(MCP_ANY, CAN_250KBPS, MCP_16MHZ);   // Only std IDs, 250kbaud bus, 16MHz crystal
   Analog_Init();    // Configure analog inputs
+
 
 #if ENABLE_EEPROM
 #if WRITE_VALUES_TO_EEPROM
@@ -150,10 +152,11 @@ int main(void) {
   ioData[IO_UART] = eeprom_read_byte((uint8_t*) EE_IO_UART);  // UART      (IO Port 6)
   ioData[IO_SPI] = eeprom_read_byte((uint8_t*) EE_IO_SPI);    // SPI       (IO Port 7)
 #else
+
   // Skip EEPROM operations (for debugging)
   ioData[IO_A0] = DATA_NONE;
-  ioData[IO_A1] = DATA_TESTPOT;
-  ioData[IO_A2] = DATA_NONE;
+  ioData[IO_A1] = DATA_NONE;
+  ioData[IO_A2] = DATA_TESTPOT;
   ioData[IO_A3] = DATA_NONE;
   ioData[IO_D0] = DATA_NONE;
   ioData[IO_I2C] = DATA_NONE;
@@ -161,27 +164,49 @@ int main(void) {
   ioData[IO_SPI] = DATA_NONE;
 #endif
 
-  // Test ToByteArray
-  data = 0x1122334455667788;
-  ToByteArray(data, canData);
-  PrintHexByte(canData[0]);
-  PrintHexByte(canData[1]);
-  PrintHexByte(canData[2]);
-  PrintHexByte(canData[3]);
-  PrintHexByte(canData[4]);
-  PrintHexByte(canData[5]);
-  PrintHexByte(canData[6]);
-  PrintHexByte(canData[7]);
 
+  MCP2515_SetCANControlMode(MCP_NORMAL);
+  PrintString("<i> MCP2515 Loopback Mode Set");
   // Loop
   while (1) {
+    data = GetAnalogInput(IO_A2);
+
+    ToByteArray(data, canData);
+
+    PrintHexByte(canData[0]);
+    PrintHexByte(canData[1]);
+
     /*
-    data = TestPot_GetValue(IO_A1);
-    PrintDecimalWord(data);
+    canData[0] = 0xbe;
+    canData[1] = 0xef;
+    canData[2] = 0x11;
+    canData[3] = 0x22;
+    canData[4] = 0x33;
+    canData[5] = 0x00;
+    canData[6] = 0x00;
+    canData[7] = 0x00;
+    */
+
+    MCP2515_SendMsg(canData, CANID_TESTPOT, DLC_2, CAN_NO_EXT, CAN_NO_RTR);
+    PrintString("\r\n<i> CAN Message Sent\r\n");
+
+    /*
+    for (int i = 0; i < 8; i++) {
+      canData[i] = 0;
+    }
+    MCP2515_ReadMsg(canData, &canID, &canDLC, &canExtFlag, &canRTRFlag);
+    PrintString("Rcv CAN ID:   0x");
+    PrintHexDWord(canID);
+    PrintString("\r\nRcv CAN Data: ");
+    for (int i = 0; i < 8; i++) {
+      PrintHexByte(canData[i]);
+    }
     PrintString("\r\n");
     */
-    //MeasurementRoutine(DATA_TESTPOT, IO_A1);
+
     _delay_ms(1000);
+    //MeasurementRoutine(DATA_TESTPOT, IO_A1);
+    //_delay_ms(1000);
     /*
     ioPort++;
 
@@ -192,10 +217,11 @@ int main(void) {
     _delay_ms(250);
   }
   */
+  }
     // Never should reach here
     return 0;
-  }
 }
+
 
 // Run specific initialization code for certain sensors
 void InitializeSensors(uint8_t* pIOData){
@@ -217,9 +243,9 @@ void InitializeSensors(uint8_t* pIOData){
 }
 
 void CalibrationRoutine(){
-  uint8_t rxBuffer;
-  uint32_t msgID;
-  uint64_t msgData;
+  uint8_t rxBuffer = 0;
+  uint32_t msgID = 0;
+  uint64_t msgData = 0;
 
   while(CALIBRATION_MODE != 0){
     if(CAN_RCV0_FLAG != 0 || CAN_RCV1_FLAG != 0){
@@ -330,5 +356,25 @@ void ToByteArray(uint64_t value, uint8_t *array){
   uint8_t i;
   for(i = 0; i<MAX_CHAR_IN_MESSAGE; i++)
     *(array+i) = (uint8_t) (value >> (8*i));
+}
+
+void TestRoutine(void){
+
+
+  // Test ToByteArray
+  data = 0x1122334455667788;
+  ToByteArray(data, canData);
+  PrintHexByte(canData[0]);
+  PrintHexByte(canData[1]);
+  PrintHexByte(canData[2]);
+  PrintHexByte(canData[3]);
+  PrintHexByte(canData[4]);
+  PrintHexByte(canData[5]);
+  PrintHexByte(canData[6]);
+  PrintHexByte(canData[7]);
+
+  // Test Analog In
+  data = TestPot_GetValue(IO_A1);
+  PrintDecimalWord((uint16_t) data);
 }
 // EOF

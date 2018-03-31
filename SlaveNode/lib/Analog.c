@@ -22,26 +22,13 @@ void Analog_Init(){
 }
 
 uint16_t GetAnalogInput(uint8_t AnalogInputPin){
-  ADMUX &= (0 << MUX0) & (0 << MUX1) & (0 << MUX2);  // Clear all mux bits, resets to A0 as ADC input
+  ADMUX &= 0xf0;              // Clear all mux bits
+  ADMUX |= AnalogInputPin;    // Set proper mux bits
 
-  if(AnalogInputPin == 1){
-    ADMUX |= (1 << MUX0); // Set A1 as ADC input
-  }
-  else if(AnalogInputPin == 2){
-    ADMUX |= (1 << MUX1); // Set A2 as ADC input
-  }
-  else if(AnalogInputPin == 3){
-    ADMUX |= (1 << MUX1) | (1 << MUX0);   // Set A3 as ADC input
-  }
-
-  return GetADC();  // After setting correct pin, read input
-}
-
-uint16_t GetADC(){
   ADCSRA |= (1 << ADSC);  // Start conversion
-  while((ADCSRA & (1 << ADIF)) != 1){    // Wait until conversion completes
+  while((ADCSRA & _BV(ADSC))){    // Wait until conversion completes
     // Do nothing
   }
-  ADCSRA |= (1 << ADIF);  // Write logic 1 to clear flag
-  return (ADCH << 8) | (ADCL);
+
+  return ADC;
 }

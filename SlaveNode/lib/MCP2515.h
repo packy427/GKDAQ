@@ -47,7 +47,7 @@ void MCP2515_WriteID(const uint8_t MCP_addr, const uint8_t ext, const uint32_t i
 void MCP2515_ReadID(const uint8_t MCP_addr, uint8_t* ext, uint32_t* id);
 void MCP2515_WriteCANMsg(const uint8_t buffer_sidh_addr, uint8_t data[], uint32_t id, uint8_t dlc, uint8_t extFlag, uint8_t rtrFlag);
 void MCP2515_ReadCANMsg(const uint8_t buffer_sidh_addr, uint8_t data[], uint32_t *id, uint8_t *dlc, uint8_t *extFlag, uint8_t *rtrFlag);
-uint8_t MCP2515_GetNextFreeTXBuf(uint8_t *txbuf_n);                     // Find empty transmit buffer
+uint8_t MCP2515_GetNextFreeTxBuf(uint8_t *txbuf_n);                     // Find empty transmit buffer
 
 /*********************************************************************************************************
 *  CAN operator function

@@ -84,6 +84,24 @@ void PrintBinaryByte(uint8_t byte) {
   }
 }
 
+void PrintHexDWord(uint32_t data){
+  PrintHexByte((uint8_t) (data >> 24));
+  PrintHexByte((uint8_t) (data >> 16));
+  PrintHexByte((uint8_t) (data >> 8));
+  PrintHexByte((uint8_t) (data >> 0));
+}
+
+void PrintHexQWord(uint64_t data){
+  PrintHexByte((uint8_t) (data >> 56));
+  PrintHexByte((uint8_t) (data >> 48));
+  PrintHexByte((uint8_t) (data >> 40));
+  PrintHexByte((uint8_t) (data >> 32));
+  PrintHexByte((uint8_t) (data >> 24));
+  PrintHexByte((uint8_t) (data >> 16));
+  PrintHexByte((uint8_t) (data >> 8));
+  PrintHexByte((uint8_t) (data >> 0));
+}
+
 // Prints value of a byte as its hexadecimal equivalent to serial
 void PrintHexByte(uint8_t byte) {
   uint8_t nibble;

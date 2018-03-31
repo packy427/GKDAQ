@@ -36,7 +36,8 @@ void PrintDecimalByte(uint8_t byte);
 void PrintDecimalWord(uint16_t word);
 
 void PrintBinaryByte(uint8_t byte);
-
+void PrintHexDWord(uint32_t data);
+void PrintHexQWord(uint64_t data);
 void PrintHexByte(uint8_t byte);
 
 char NibbleToHex(uint8_t nibble);
