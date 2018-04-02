@@ -24,17 +24,19 @@
 #include "lib/USART.c"    // USART register controls
 #include "lib/SPI.c"      // SPI register controls
 #include "lib/Analog.c"   // Analog register controls
-#include "lib/Sensors.c"  // Supported sensors
+#include "lib/Sensors.c"  // Various supported sensors
+#include "lib/MPU6050.c"
+#include "lib/I2C.c"
 
 // Program options
 #define WRITE_VALUES_TO_EEPROM 1
 #define ENABLE_EEPROM 0
 
 /*== GLOBAL VARIABLES ==*/
-uint8_t NodeAddress;
-volatile int CALIBRATION_MODE; // Calib mode flag
-volatile int CAN_RCV0_FLAG;    // Set on CAN msg rcv
-volatile int CAN_RCV1_FLAG;    // Set on can msg rcv
+uint8_t nodeAddress;        // Node address
+uint8_t calibrationFlag;    // Calib mode flag
+volatile uint8_t checkCANRcv;    // Set on 10ms timer overflow
+volatile uint8_t isButtonPressed;    // Set pushbutton  timer overflow
 
 // Enumerations
 enum IOPORTS{
@@ -100,44 +102,73 @@ enum EEPROM{
 void InitializeSensors(uint8_t*);
 void CalibrationRoutine(void);
 void MeasurementRoutine(uint8_t, uint8_t);
-void TestRoutine(void);
-void ToByteArray(uint64_t, uint8_t*);
+void ChangeNodeAddress(uint8_t);
+void ChangeNodeIO(uint8_t, uint8_t);
 
 // Global CAN
-uint8_t canData[MAX_CHAR_IN_MESSAGE];
+uint64_t canData;
 uint32_t canID;
 uint8_t canDLC;
 uint8_t canExtFlag;
 uint8_t canRTRFlag;
 uint8_t mcpMode;
-uint64_t data;      // Testing variable, delete in production code
+
+
+// Interrupt Service Routines
+ISR (TIMER0_OVF_vect){
+    checkCANRcv = 1;
+    TCNT0 = 177;   // Reset timer to ~10ms interrupt
+}
+
+ISR (TIMER1_OVF_vect){
+    // Check D0 pin state
+    if(D0_PIN & (1<<D0)){ // Pin high
+      TCNT1 = 65520;   // Reset to 2 ms
+    }
+    else{   // Pin low
+      isButtonPressed = 1;
+      TCNT1 = 61630;   // Reset to 0.5s if pressed
+    }
+}
+
 
 int main(void) {
   /*== VARIABLE DECLARATIONS ==*/
   uint8_t ioData[8];
 
   /*== INITIALIZATION ROUTINE ==*/
-  _delay_ms(100); // Delay for 100ms, allow all devices to wake up
+  // Pin modes
+  D0_DDR &= ~(1 << D0);     // D0 as input
 
-  // Configure Hardware
-  USART_Init();     // Configure serial
-  SPI_Init();       // Configure SPI
-  MCP2515_Init(MCP_ANY, CAN_250KBPS, MCP_16MHZ);   // Only std IDs, 250kbaud bus, 16MHz crystal
-  Analog_Init();    // Configure analog inputs
+  _delay_ms(250); // Delay for 100ms, allow all devices to wake up
 
+  // TIMER0 For CAN Polling
+  TCNT0 = 177;     // For 10ms at 8MHz w/ 1024 prescale
+  TCCR0A = 0x00;
+  TCCR0B = (1<<CS10) | (1<<CS12);  // Timer mode with 1024 prescler
+  TIMSK0 = (1 << TOIE0);   // Enable timer 0
+
+  // TIMER1 For Button Polling
+  TCNT1 = 65520;   // For 2ms at 8MHz w/ 1024 prescale
+  TCCR1A = 0x00;
+  TCCR1B = (1<<CS10) | (1<<CS12);  // Timer mode with 1024 prescler
+  TIMSK1 |= (1 << TOIE1) ;   // Enable timer1 overflow interrupt(TOIE1)
+
+  // Enable interrupts
+  sei(); // Enable global interrupts by setting global interrupt enable bit in SREG
 
 #if ENABLE_EEPROM
-#if WRITE_VALUES_TO_EEPROM
+#if WRITE_DEFAULT_EEPROM_VALUES
   // Write default values to the EEPROM on power up
   eeprom_write_byte((uint8_t*) EE_NODEADDR, (uint8_t) 0);
-  eeprom_write_byte((uint8_t*) EE_IO_A0, (uint8_t) 0);
-  eeprom_write_byte((uint8_t*) EE_IO_A1, (uint8_t) 0);
-  eeprom_write_byte((uint8_t*) EE_IO_A2, (uint8_t) 0);
-  eeprom_write_byte((uint8_t*) EE_IO_A3, (uint8_t) 0);
-  eeprom_write_byte((uint8_t*) EE_IO_D0, (uint8_t) 0);
-  eeprom_write_byte((uint8_t*) EE_IO_I2C, (uint8_t) 0);
-  eeprom_write_byte((uint8_t*) EE_IO_UART, (uint8_t) 0);
-  eeprom_write_byte((uint8_t*) EE_IO_SPI, (uint8_t) 0);
+  eeprom_write_byte((uint8_t*) EE_IO_A0, (uint8_t) DATA_NONE);
+  eeprom_write_byte((uint8_t*) EE_IO_A1, (uint8_t) DATA_NONE);
+  eeprom_write_byte((uint8_t*) EE_IO_A2, (uint8_t) DATA_NONE);
+  eeprom_write_byte((uint8_t*) EE_IO_A3, (uint8_t) DATA_NONE);
+  eeprom_write_byte((uint8_t*) EE_IO_D0, (uint8_t) DATA_NONE);
+  eeprom_write_byte((uint8_t*) EE_IO_I2C, (uint8_t) DATA_NONE);
+  eeprom_write_byte((uint8_t*) EE_IO_UART, (uint8_t) DATA_NONE);
+  eeprom_write_byte((uint8_t*) EE_IO_SPI, (uint8_t) DATA_NONE);
 
   _delay_ms(250);   // Wait after EEPROM write
 #endif
@@ -153,7 +184,7 @@ int main(void) {
   ioData[IO_SPI] = eeprom_read_byte((uint8_t*) EE_IO_SPI);    // SPI       (IO Port 7)
 #else
 
-  // Skip EEPROM operations (for debugging)
+  // Manually set measurements and skip EEPROM operations (for debugging)
   ioData[IO_A0] = DATA_NONE;
   ioData[IO_A1] = DATA_NONE;
   ioData[IO_A2] = DATA_TESTPOT;
@@ -164,62 +195,28 @@ int main(void) {
   ioData[IO_SPI] = DATA_NONE;
 #endif
 
+  // Configure Hardware
+  USART_Init();     // Configure serial
+  SPI_Init();       // Configure SPI
+  MCP2515_Init(MCP_ANY, CAN_100KBPS, MCP_16MHZ);   // Only std IDs, 250kbaud bus, 16MHz crystal
+  Analog_Init();    // Configure analog inputs
+  InitializeSensors(ioData);  // Run any additional initialization routines required
+  MCP2515_SetCANControlMode(MCP_NORMAL);  // Activate node on CAN bus
+  MCP2515_EnableOneShotTx(1);
+#if EN_DEBUG
+  PrintString("<i> MCP2515 Normal Mode Set");
+#endif
 
-  MCP2515_SetCANControlMode(MCP_NORMAL);
-  PrintString("<i> MCP2515 Loopback Mode Set");
-  // Loop
+  // == MAIN LOOP == //
   while (1) {
-    data = GetAnalogInput(IO_A2);
-
-    ToByteArray(data, canData);
-
-    PrintHexByte(canData[0]);
-    PrintHexByte(canData[1]);
-
-    /*
-    canData[0] = 0xbe;
-    canData[1] = 0xef;
-    canData[2] = 0x11;
-    canData[3] = 0x22;
-    canData[4] = 0x33;
-    canData[5] = 0x00;
-    canData[6] = 0x00;
-    canData[7] = 0x00;
-    */
-
-    MCP2515_SendMsg(canData, CANID_TESTPOT, DLC_2, CAN_NO_EXT, CAN_NO_RTR);
-    PrintString("\r\n<i> CAN Message Sent\r\n");
-
-    /*
-    for (int i = 0; i < 8; i++) {
-      canData[i] = 0;
+    for(uint8_t io = IO_A0; io <= IO_SPI; io++){
+      MeasurementRoutine(ioData[io], io);
+      _delay_ms(5);
     }
-    MCP2515_ReadMsg(canData, &canID, &canDLC, &canExtFlag, &canRTRFlag);
-    PrintString("Rcv CAN ID:   0x");
-    PrintHexDWord(canID);
-    PrintString("\r\nRcv CAN Data: ");
-    for (int i = 0; i < 8; i++) {
-      PrintHexByte(canData[i]);
-    }
-    PrintString("\r\n");
-    */
-
-    _delay_ms(1000);
-    //MeasurementRoutine(DATA_TESTPOT, IO_A1);
-    //_delay_ms(1000);
-    /*
-    ioPort++;
-
-    // If looped through all io, repeat
-    if(ioPort > IO_SPI){
-      ioPort = IO_A0;
-    }
-    _delay_ms(250);
+    _delay_ms(200);
   }
-  */
-  }
-    // Never should reach here
-    return 0;
+  // Never should reach here
+  return 0;
 }
 
 
@@ -233,7 +230,10 @@ void InitializeSensors(uint8_t* pIOData){
     if (ioData == DATA_NONE) {
       return;   // Break out early if no sensor connected
     } else if (ioData == DATA_ACCGYRO) {
-      // TODO: ADD INIT CODE FOR MPU6050
+        MPU6050_Init();
+#if EN_DEBUG
+        PrintString("<i> MPU6050 Init");
+#endif
     } else if (ioData == DATA_ACCGYROMAG) {
       // TODO: ADD INIT CODE FOR MPU9250
     } else if (ioData == DATA_GPS) {
@@ -243,31 +243,36 @@ void InitializeSensors(uint8_t* pIOData){
 }
 
 void CalibrationRoutine(){
-  uint8_t rxBuffer = 0;
-  uint32_t msgID = 0;
-  uint64_t msgData = 0;
-
-  while(CALIBRATION_MODE != 0){
-    if(CAN_RCV0_FLAG != 0 || CAN_RCV1_FLAG != 0){
-      if(CAN_RCV0_FLAG != 0){
-        rxBuffer = 0;
-      }
-      else{
-        rxBuffer = 1;
-      }
-
-      // Read CAN ID
-      // Read CAN data
-
-      if(msgID == CANID_CAL_CHANGEADDR){
-        // Change node addr based on msgdata
-        msgData = msgData;
-      }
-      else if(msgID == CANID_CAL_CHANGEIO){
-        // change io port measurement based on msgdata
-      }
-      else if(msgID == CANID_CAL_EXIT){
-        CALIBRATION_MODE = 0;
+  uint8_t rxNodeAddr;
+  uint64_t prevCANData = 0;
+#if EN_DEBUG
+  PrintString("<i> Entered Calibration Routine");
+#endif
+  rxNodeAddr = (uint8_t) canData & 0xFF;
+  if(rxNodeAddr != nodeAddress){
+    calibrationFlag = 0;    // If calibration mode isn't meant for this node, clear flag
+  }
+  while(calibrationFlag != 0) {
+    MCP2515_ReadMsg(&canData, &canID, &canDLC, &canExtFlag, &canRTRFlag);
+    if (prevCANData != canData) {  // Check that rx buffer changed
+      prevCANData = canData;
+      rxNodeAddr = (uint8_t) canData & 0xFF;    // Pull out node addr (first byte)
+      if (rxNodeAddr == nodeAddress) {    // Command meant for this node
+        if (canID == CANID_CAL_CHANGEADDR) {
+          uint8_t newAddr = (uint8_t) (canData >> 8);
+          ChangeNodeAddress(newAddr);
+        }
+        else if (canID == CANID_CAL_CHANGEIO) {
+          uint8_t ioPort = (uint8_t) (canData >> 8);
+          uint8_t ioData = (uint8_t) (canData >> 16);
+          ChangeNodeIO(ioPort, ioData);
+        }
+        else if (canID == CANID_CAL_EXIT) {
+          calibrationFlag = 0;
+#if EN_DEBUG
+          PrintString("<i> Left Calibration Routine");
+#endif
+        }
       }
     }
   }
@@ -275,45 +280,57 @@ void CalibrationRoutine(){
 }
 
 void MeasurementRoutine(uint8_t IOData, uint8_t IOPort){
-  uint64_t rawData;
-  uint8_t arrData[MAX_CHAR_IN_MESSAGE];
+  // If no sensor is connected, do nothing
   if(IOData == DATA_NONE) {
     return;
   }
+
+  uint64_t canData = 0;   // Holds sensor reading
+  uint16_t x = 0;
+  uint16_t y = 0;
+  uint16_t z = 0;    // Vars to hold x,y,z components
+  // If there is a sensor then read it and send the value over the bus
   switch(IOData){
     // Analog Engine Head Temperature Sensor
     case DATA_ENGINETEMP:
-
+      canData |= AD8495_GetTemperature(IOPort, 0);    // Get farenheit temp, 16 bit
+      MCP2515_SendMsg(canData, CANID_ENGINETEMP, DLC_2, CAN_NO_EXT, CAN_NO_RTR);
       break;
 
     // Analog Exhaust Gas Temperature Sensor
     case DATA_EXHAUSTTEMP:
-
+      canData |= AD8495_GetTemperature(IOPort, 0);    // Get farineheit temp, 16 bit
+      MCP2515_SendMsg(canData, CANID_EXHAUSTTEMP, DLC_2, CAN_NO_EXT, CAN_NO_RTR);
       break;
 
     // Analog Tachometer (Engine Speed) Sensor
     case DATA_ENGINESPEED:
-
+      canData |= PJK0010_GetEngineSpeed(IOPort);      // Get engine speed, 16 bit
+      MCP2515_SendMsg(canData, CANID_ENGINESPEED, DLC_2, CAN_NO_EXT, CAN_NO_RTR);
       break;
 
     // Analog Tachometer (Axle Speed) Sensor
     case DATA_AXLESPEED:
-
+      canData |= PJK0020_GetKartSpeed(IOPort);        // Get kart speed, 16 bit
+      MCP2515_SendMsg(canData, CANID_AXLESPEED, DLC_2, CAN_NO_EXT, CAN_NO_RTR);
       break;
 
     // Analog Throttle Position Sensor
     case DATA_THROTTLEPOSITION:
-
+      canData |= GetThrottlePosition(IOPort);
+      MCP2515_SendMsg(canData, CANID_THROTTLEPOSITION, DLC_2, CAN_NO_EXT, CAN_NO_RTR);
       break;
 
     // Analog Brake Position Sensor
     case DATA_BRAKEPOSITION:
-
+      canData |= GetBrakePosition(IOPort);
+      MCP2515_SendMsg(canData, CANID_BRAKEPOSITION, DLC_2, CAN_NO_EXT, CAN_NO_RTR);
       break;
 
     // Analog Steering Angle Sensor
     case DATA_STEERINGANGLE:
-
+      canData |= GetSteeringAngle(IOPort);
+      MCP2515_SendMsg(canData, CANID_STEERINGANGLE, DLC_2, CAN_NO_EXT, CAN_NO_RTR);
       break;
 
     // Analog Ambient Temperature Sensor
@@ -323,7 +340,16 @@ void MeasurementRoutine(uint8_t IOData, uint8_t IOPort){
 
     // MPU6050 (I2C)
     case DATA_ACCGYRO:
+      // Read accelerometer first
+      MPU6050_GetAcceleration(&x, &y, &z);
+      canData |= x | ((uint64_t) y << 16) | ((uint64_t) z << 32);
+      MCP2515_SendMsg(canData, CANID_ACCELERATION, DLC_6, CAN_NO_EXT, CAN_NO_RTR);
+      canData = 0;    // Clear raw data var
 
+      // Read accelerometer first
+      MPU6050_GetGyration(&x, &y, &z);
+      canData |= x | ((uint64_t) y << 16) | ((uint64_t) z << 32);
+      MCP2515_SendMsg(canData, CANID_GYRATION, DLC_6, CAN_NO_EXT, CAN_NO_RTR);
       break;
 
     // MPU9250
@@ -343,38 +369,52 @@ void MeasurementRoutine(uint8_t IOData, uint8_t IOPort){
 
     // Test potentiometer
     case DATA_TESTPOT:
-      rawData = TestPot_GetValue(IOPort);
-      ToByteArray(rawData, arrData);
-      PrintDecimalWord(data);
+      canData |= TestPot_GetValue(IOPort);
+      PrintDecimalWord(canData);
       PrintString("\r\n");
-      MCP2515_SendMsg(arrData, CANID_TESTPOT, DLC_1, CAN_NO_EXT, CAN_NO_RTR);
+      MCP2515_SendMsg(canData, CANID_TESTPOT, DLC_1, CAN_NO_EXT, CAN_NO_RTR);
       break;
   }
 }
 
-void ToByteArray(uint64_t value, uint8_t *array){
-  uint8_t i;
-  for(i = 0; i<MAX_CHAR_IN_MESSAGE; i++)
-    *(array+i) = (uint8_t) (value >> (8*i));
+void ChangeNodeAddress(uint8_t newAddress){
+  eeprom_write_byte((uint8_t*) EE_NODEADDR, (uint8_t) newAddress);
 }
 
-void TestRoutine(void){
+void ChangeNodeIO(uint8_t ioPort, uint8_t ioData){
+  switch(ioPort){
+    case IO_A0:
+      eeprom_write_byte((uint8_t*) EE_IO_A0, (uint8_t) ioData);
+      break;
+    case IO_A1:
+      eeprom_write_byte((uint8_t*) EE_IO_A1, (uint8_t) ioData);
+      break;
+    case IO_A2:
+      eeprom_write_byte((uint8_t*) EE_IO_A2, (uint8_t) ioData);
+      break;
+    case IO_A3:
+      eeprom_write_byte((uint8_t*) EE_IO_A3, (uint8_t) ioData);
+      break;
+    case IO_D0:
+      eeprom_write_byte((uint8_t*) EE_IO_D0, (uint8_t) ioData);
+      break;
+    case IO_I2C:
+      eeprom_write_byte((uint8_t*) EE_IO_I2C, (uint8_t) ioData);
+      break;
+    case IO_UART:
+      eeprom_write_byte((uint8_t*) EE_IO_UART, (uint8_t) ioData);
+      break;
+    case IO_SPI:
+      eeprom_write_byte((uint8_t*) EE_IO_SPI, (uint8_t) ioData);
+      break;
+  }
 
 
-  // Test ToByteArray
-  data = 0x1122334455667788;
-  ToByteArray(data, canData);
-  PrintHexByte(canData[0]);
-  PrintHexByte(canData[1]);
-  PrintHexByte(canData[2]);
-  PrintHexByte(canData[3]);
-  PrintHexByte(canData[4]);
-  PrintHexByte(canData[5]);
-  PrintHexByte(canData[6]);
-  PrintHexByte(canData[7]);
 
-  // Test Analog In
-  data = TestPot_GetValue(IO_A1);
-  PrintDecimalWord((uint16_t) data);
+
+
+
+
+
 }
 // EOF

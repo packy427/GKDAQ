@@ -14,11 +14,20 @@
 #ifndef GKDAQ_SENSORS_H
 #define GKDAQ_SENSORS_H
 
+// == CONSTANTS == //
+#define PJK0010_MAX_RPM   15000.0
+#define PJK0020_MAX_RPM   2500.0
+#define PJK0020_TIRE_CIRCUM   0.00059499857   // 12 inches diam in miles * pi
+#define MAX_THROTTLE_ANGLE 120
+#define MAX_BRAKE_ANGLE 120
+#define MAX_STEERING_ANGLE 80
+#define STEERING_ANGLE_NEG_FLAG 0x8000
+
 // Test pot
 uint16_t TestPot_GetValue(uint8_t IOPort);
 
 // AD8495 Temperature Sensor
-uint16_t AD8495_GetTemperature(uint8_t IOPort);
+uint16_t AD8495_GetTemperature(uint8_t IOPort, uint8_t);
 
 // MAX6675 Temperature Sensor
 uint16_t MAX6675_GetTemperature(uint8_t IOPort);
@@ -27,7 +36,7 @@ uint16_t MAX6675_GetTemperature(uint8_t IOPort);
 uint16_t PJK0010_GetEngineSpeed(uint8_t IOPort);
 
 // PJK0020 Axle Tachometer
-uint16_t PJK0020_GetAxleSpeed(uint8_t IOPort);
+uint16_t PJK0020_GetKartSpeed(uint8_t IOPort);
 
 // PJK0030 Throttle Position Sensor
 uint16_t PJK0030_GetThrottlePosition(uint8_t IOPort);
@@ -41,19 +50,11 @@ uint16_t PJK0050_GetSteeringAngle(uint8_t IOPort);
 // TMP36 Ambient Temperature Sensor
 uint16_t TMP36_GetTemperature(uint8_t IOPort);
 
-// MPU6050 Accelerometer/Gyroscope
-uint64_t MPU6050_GetAcceleration(uint8_t IOPort);
-
-uint64_t MPU6050_GetGyration(uint8_t IOPort);
-
-void MPU6050_Calibrate(uint8_t IOPort);
 
 // MPU9250 Accelerometer/Gyroscope/Magnetometer
-uint64_t MPU9250_GetAcceleration(uint8_t IOPort);
-
-uint64_t MPU9250_GetGyration(uint8_t IOPort);
-
-uint64_t MPU9250_GetHeading(uint8_t IOPort);
+void MPU9250_GetAcceleration(uint8_t, uint16_t*, uint16_t*, uint16_t*);
+void MPU9250_GetGyration(uint8_t IOPort, uint16_t*, uint16_t*, uint16_t*);
+void MPU9250_GetHeading(uint8_t IOPort, uint16_t*);
 
 void MPU9250_Calibrate(uint8_t IOPort);
 

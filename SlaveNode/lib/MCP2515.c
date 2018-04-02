@@ -861,15 +861,15 @@ uint8_t MCP2515_InitFilter(uint8_t num, uint8_t ext, uint32_t ulData)
 ** Function name:           sendMsg
 ** Descriptions:            Send message
 *********************************************************************************************************/
-uint8_t MCP2515_SendMsg(uint8_t *pData, uint32_t id, uint8_t dlc, uint8_t extFlag, uint8_t rtrFlag)
+uint8_t MCP2515_SendMsg(uint64_t data, uint32_t id, uint8_t dlc, uint8_t extFlag, uint8_t rtrFlag)
 {
     uint8_t res, res1, txbuf_n, i;
-    uint8_t data[MAX_CHAR_IN_MESSAGE];
+    uint8_t dataArr[MAX_CHAR_IN_MESSAGE];
     uint16_t uiTimeOut = 0;
 
     for(i = 0; i<MAX_CHAR_IN_MESSAGE; i++){
-      data[i] = *(pData+i);
-      PrintHexByte(data[i]);
+      dataArr[i] = (uint8_t)(data >> (8 * i));
+      PrintHexByte(dataArr[i]);
     }
 
     do {
@@ -882,7 +882,7 @@ uint8_t MCP2515_SendMsg(uint8_t *pData, uint32_t id, uint8_t dlc, uint8_t extFla
         return CAN_GETTXBFTIMEOUT;                                      /* get tx buff time out         */
     }
     uiTimeOut = 0;
-    MCP2515_WriteCANMsg(txbuf_n, data, id, dlc, extFlag, rtrFlag);        // Send to buffer
+    MCP2515_WriteCANMsg(txbuf_n, dataArr, id, dlc, extFlag, rtrFlag);        // Send to buffer
     MCP2515_ModifyRegister(txbuf_n-1 , MCP_TXB_TXREQ_M, MCP_TXB_TXREQ_M); // Set tx request flag
     
     do
@@ -902,27 +902,36 @@ uint8_t MCP2515_SendMsg(uint8_t *pData, uint32_t id, uint8_t dlc, uint8_t extFla
 ** Function name:           readMsg
 ** Descriptions:            Read message
 *********************************************************************************************************/
-uint8_t MCP2515_ReadMsg(uint8_t *pData, uint32_t *id, uint8_t *dlc, uint8_t *extFlag, uint8_t *rtrFlag)
+uint8_t MCP2515_ReadMsg(uint64_t *data, uint32_t *id, uint8_t *dlc, uint8_t *extFlag, uint8_t *rtrFlag)
 {
     uint8_t stat, res;
-
+    uint8_t dataArr[MAX_CHAR_IN_MESSAGE];
     stat = MCP2515_ReadStatus();
+    uint64_t rxData = 0;   // clear data for the or-equals statements
 
     if(stat & MCP_STAT_RX0IF)                                        /* Msg in Buffer 0              */
     {
-        MCP2515_ReadCANMsg(MCP_RXBUF_0, pData, id, dlc, extFlag, rtrFlag);
-        MCP2515_ModifyRegister(MCP_CANINTF, MCP_RX0IF, 0);
-        res = CAN_OK;
+      MCP2515_ReadCANMsg(MCP_RXBUF_0, dataArr, id, dlc, extFlag, rtrFlag);
+      MCP2515_ModifyRegister(MCP_CANINTF, MCP_RX0IF, 0);
+      for (int i = 0; i < MAX_CHAR_IN_MESSAGE; i++) {
+        rxData += dataArr[i] << (8 * i);
+      }
+      res = CAN_OK;
     }
     else if(stat & MCP_STAT_RX1IF)                                   /* Msg in Buffer 1              */
     {
-        MCP2515_ReadCANMsg(MCP_RXBUF_1, pData, id, dlc, extFlag, rtrFlag);
-        MCP2515_ModifyRegister(MCP_CANINTF, MCP_RX1IF, 0);
-        res = CAN_OK;
+      MCP2515_ReadCANMsg(MCP_RXBUF_1, dataArr, id, dlc, extFlag, rtrFlag);
+      MCP2515_ModifyRegister(MCP_CANINTF, MCP_RX1IF, 0);
+      for (int i = 0; i < MAX_CHAR_IN_MESSAGE; i++) {
+        rxData += dataArr[i] << (8 * i);
+      }
+      res = CAN_OK;
     }
-    else 
-        res = CAN_NOMSG;
-    
+    else {
+      res = CAN_NOMSG;
+    }
+
+    *data = rxData;
     return res;
 }
 

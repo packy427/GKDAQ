@@ -45,16 +45,16 @@ uint8_t MCP2515_Init(const uint8_t canIDMode, const uint8_t canSpeed, const uint
 void MCP2515_WriteMF(const uint8_t MCP_addr, const uint8_t ext, const uint32_t id);
 void MCP2515_WriteID(const uint8_t MCP_addr, const uint8_t ext, const uint32_t id);
 void MCP2515_ReadID(const uint8_t MCP_addr, uint8_t* ext, uint32_t* id);
-void MCP2515_WriteCANMsg(const uint8_t buffer_sidh_addr, uint8_t data[], uint32_t id, uint8_t dlc, uint8_t extFlag, uint8_t rtrFlag);
-void MCP2515_ReadCANMsg(const uint8_t buffer_sidh_addr, uint8_t data[], uint32_t *id, uint8_t *dlc, uint8_t *extFlag, uint8_t *rtrFlag);
+void MCP2515_WriteCANMsg(const uint8_t buffer_sidh_addr, uint8_t *data, uint32_t id, uint8_t dlc, uint8_t extFlag, uint8_t rtrFlag);
+void MCP2515_ReadCANMsg(const uint8_t buffer_sidh_addr, uint8_t *data, uint32_t *id, uint8_t *dlc, uint8_t *extFlag, uint8_t *rtrFlag);
 uint8_t MCP2515_GetNextFreeTxBuf(uint8_t *txbuf_n);                     // Find empty transmit buffer
 
 /*********************************************************************************************************
 *  CAN operator function
 *********************************************************************************************************/
 
-uint8_t MCP2515_ReadMsg(uint8_t data[], uint32_t *id, uint8_t *dlc, uint8_t *extFlag, uint8_t *rtrFlag);
-uint8_t MCP2515_SendMsg(uint8_t data[], uint32_t id, uint8_t dlc, uint8_t extFlag, uint8_t rtrFlag);
+uint8_t MCP2515_ReadMsg(uint64_t *data, uint32_t *id, uint8_t *dlc, uint8_t *extFlag, uint8_t *rtrFlag);
+uint8_t MCP2515_SendMsg(uint64_t data, uint32_t id, uint8_t dlc, uint8_t extFlag, uint8_t rtrFlag);
 
 uint8_t MCP2515_Begin(uint8_t idmodeset, uint8_t speedset, uint8_t clockset);   // Initialize controller parameters
 uint8_t MCP2515_InitMask(uint8_t num, uint8_t ext, uint32_t ulData);            // Initialize Mask(s)
@@ -65,7 +65,7 @@ uint8_t MCP2515_CheckError(void);                                             //
 uint8_t MCP2515_GetError(void);                                               // Check for errors
 uint8_t MCP2515_ErrorCountRX(void);                                           // Get error count
 uint8_t MCP2515_ErrorCountTX(void);                                           // Get error count
-uint8_t MCP2515_OneShotTX(uint8_t enable);                                    // Enable one-shot transmission
+uint8_t MCP2515_EnableOneShotTx(uint8_t);                              // Enable one-shot transmission
 uint8_t MCP2515_AbortTX(void);                                                // Abort queued transmission(s)
 uint8_t MCP2515_SetGPO(uint8_t data);                                         // Sets GPO
 uint8_t MCP2515_GetGPI(void);                                                 // Reads GPI
